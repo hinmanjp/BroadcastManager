@@ -1,0 +1,128 @@
+﻿@page "/manager"
+@using Microsoft.AspNetCore.Authorization;
+@using Microsoft.AspNetCore.Components.Authorization;
+@using OBSWebsocketDotNet;
+
+
+@inject IJSRuntime JS
+
+@*@attribute [Authorize] *@
+
+@inject NavigationManager NavManager;
+
+<AuthorizeView>
+    <Authorized>
+        <p>Hello, @context.User?.Identity?.Name!</p>
+        <p><button @onclick="OnStart" disabled="@(SharedState.BCastState != SharedState.BroadcastState.stopped)" name="Start">Start</button></p>
+        <p><button @onclick="OnPause" disabled="@(SharedState.BCastState != SharedState.BroadcastState.running )" name="Pause">Pause</button></p>
+        <p><button @onclick="OnResume" disabled="@(SharedState.BCastState != SharedState.BroadcastState.paused )" name="Resume">Resume</button></p>
+        <p><button @onclick="OnStop" disabled="@(SharedState.BCastState == SharedState.BroadcastState.stopped || SharedState.BCastState == SharedState.BroadcastState.stopping )" name="Stop">Stop</button></p>
+        <video id="local_video" defaultMuted="true" />
+        <video id="remote_video">
+            <source src="http://66.42.70.209:8000/live.ts", type="video/mp4"/>
+        </video>
+    </Authorized>
+    <NotAuthorized>
+        @{
+            NavManager.NavigateTo("/");
+        }
+    </NotAuthorized>
+</AuthorizeView>
+
+
+
+@code {
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SharedState.BCastState is null)
+            SharedState.BCastState = SharedState.BroadcastState.stopped;
+
+        await Task.Delay(0);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender )
+        {
+        }
+        await Task.Delay(0);
+    }
+
+
+    private async Task OnStart()
+    {
+        lock (SharedState.LockObj)
+        {
+            if (SharedState.BCastState is null || SharedState.BCastState == SharedState.BroadcastState.stopped)
+            {
+                SharedState.BCastState = SharedState.BroadcastState.starting;
+
+                // start icecast server
+                // get ip address of icecast server
+                // start nice enduser authentication server, send it current credentials
+                // start obs - manage via websocket
+                // start ffmpeg proces producing 2 output streams - one local, one sent to icecast server
+
+                // start play of local video
+                // start play of icecast video
+                OBSWebsocket oBS = new OBSWebsocket();
+
+
+
+                var result = JS.InvokeAsync<object>("PlayVideo", "local_video", "/videos/elephants.mp4", 0);
+
+                SharedState.BCastState = SharedState.BroadcastState.running;
+            }
+        }
+        //Refresh();
+        await Task.Delay(0);
+    }
+
+    private async Task OnPause()
+    {
+        if (SharedState.BCastState == SharedState.BroadcastState.running)
+        {
+            // don't actuall pause the playback - just switch the video source to a static image
+            var result = JS.InvokeAsync<string>("PauseVideo", "local_video");
+            SharedState.BCastState = SharedState.BroadcastState.paused;
+            await Task.Delay(0);
+        }
+        //Refresh();
+        await Task.Delay(0);
+    }
+
+    private async Task OnResume()
+    {
+        if (SharedState.BCastState == SharedState.BroadcastState.paused)
+        {
+            var result = JS.InvokeAsync<object>("ResumeVideo", "local_video");
+            SharedState.BCastState = SharedState.BroadcastState.running;
+            // switch to sending static image & pre-recorded audio
+        }
+        Refresh();
+        await Task.Delay(0);
+    }
+
+    private async Task OnStop()
+    {
+        // don't actually pause - shutdown source & stop & teardown icecast server
+        SharedState.BCastState = SharedState.BroadcastState.stopped;
+        var result = JS.InvokeAsync<string>("PauseVideo", "local_video");
+        Refresh();
+        await Task.Delay(0);
+    }
+
+
+    private void Refresh()
+    {
+        _ = InvokeAsync(() =>
+        {
+            StateHasChanged();
+        });
+    }
+
+
+}
+

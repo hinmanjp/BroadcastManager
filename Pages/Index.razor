@@ -1,0 +1,97 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Forms;
+@using System.Text.Json;
+@using System.Security.Claims;
+@using BroadcastManager2.Components;
+@attribute [AllowAnonymous]
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+
+@implements IAsyncDisposable
+
+<PageTitle>Broadcast Manager Login</PageTitle>
+
+<style>
+    div[name=main-body] {
+        width: 90vw;
+        height: 98vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .version {
+        position: absolute;
+        bottom: 0px;
+        left: 10px;
+    }
+</style>
+<div class="form-group" name="main-body">
+    <div>
+        <div class="version">Version: @app_version</div>
+        @if (show_version)
+            @app_version
+        <br />
+        <EditForm Model="@wardCode" OnValidSubmit="@OnLoginClick">
+            <InputText @ref=inputTextForFocus @bind-Value="@wardCode.wardCode"></InputText>
+            <button type="submit" @onclick="OnLoginClick">Login</button>
+        </EditForm>
+        </div>
+    </div>
+
+
+    @code {
+
+    private InputText? inputTextForFocus;
+
+
+    private bool show_version;
+    private string app_version = "1.0.0";
+    private WardCode wardCode = new WardCode();
+
+
+    protected class WardCode
+    {
+        public string wardCode { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.TryGetQueryString<bool>("show-version", out show_version);
+        await Task.Delay(0);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            if (inputTextForFocus != null && inputTextForFocus.Element != null)
+                await inputTextForFocus.Element.Value.FocusAsync();
+    }
+
+    private void OnLoginClick()
+    {
+        string code = wardCode.wardCode;
+        wardCode.wardCode = "";
+
+        if (ValidateWardCode(code))
+        {
+            Navigation.NavigateTo("manager");
+        }
+    }
+
+
+    private bool ValidateWardCode(string Code)
+    {
+        bool is_valid = ((CustomAuthenticationStateProvider)AuthenticationStateProvider).AuthenticateUser(Code);
+        return is_valid;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Task.Delay(0);
+    }
+
+}

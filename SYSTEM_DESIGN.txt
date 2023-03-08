@@ -1,0 +1,32 @@
+﻿
+local server
+- running OBS
+  - OBS configured to capture from HDMI input
+
+- running nginx
+- running BroadcastManager
+
+BM starts VM running docker in Vultr via API calls
+//BM run startup script on VM to run icecast docker container (infiniteproject/icecast)
+  VM startup script needs to handle certificate retreival
+  VM startup script runs docker container running nginx to convert RTMP stream to HLS / DASH stream
+    - https://www.digitalocean.com/community/tutorials/how-to-set-up-a-video-streaming-server-using-nginx-rtmp-on-ubuntu-20-04
+    - https://obsproject.com/forum/resources/how-to-set-up-your-own-private-rtmp-server-using-nginx.50/
+  VM startup script runs docker container with blazor app for end user authentication
+
+BM probes for VM startup completion
+BM updates DNS records to point to VM current IP
+BM pushes auth data to VM end user gui
+BM Starts NGINX
+BM Starts OBS RTMP stream to local NGINX
+
+Local NGINX pushes RTMP stream to remote NGINX
+Local NGINX provides HLS stream to BM for viewing
+
+BM on pause switches OBS Scene from HDMI to pause
+BM on resume switches OBS scene from pause to HDMI
+
+BM on stop gets list of users & count from gui
+BM destroys VM via API
+
+
