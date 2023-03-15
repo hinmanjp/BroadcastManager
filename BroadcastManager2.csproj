@@ -23,11 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="broadcastManager_ssh_private.key">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Update="broadcastManager_ssh_key">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Update="broadcastManager_ssh_private.key.pub">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Update="broadcastManager_ssh_key.pub">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="rtsp-simple-server_linux_amd64.tar.gz">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

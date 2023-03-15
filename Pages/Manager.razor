@@ -39,6 +39,8 @@
 
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
+    private string obsKey = "";
+    private string obsUrl = "";
     private string vultrKey = "";
 
     private bool obs_connected;
@@ -50,6 +52,8 @@
             SharedState.BCastState = SharedState.BroadcastState.stopped;
         obs_connected = obs.IsConnected;
         obs.Connected += onObsConnect;
+        obsKey = configuration["ObsApiKey"] ?? "";
+        obsUrl = configuration["ObsUrl"] ?? "";
         vultrKey = configuration["VultrApiKey"] ?? "";
         await Task.Delay(0);
     }
@@ -85,11 +89,11 @@
         try
         {
             if(! obs.IsConnected )
-                await obs.ConnectAsync("ws://172.17.17.45:4455", "***REMOVED***");
+                await obs.ConnectAsync(obsUrl, obsKey);
         }
         catch (Exception ex)
         {
-            alert_msg = "Connect failed : " + ex.Message;
+            alert_msg = "Connection to OBS service failed : " + ex.Message;
         }
 
         // if an sshkey doesn't exist - generate one
