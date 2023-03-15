@@ -365,3 +365,5 @@ FodyWeavers.xsd
 /broadcastManager_ssh_private.key.pub
 /broadcastManager_ssh_private.key
 /rtsp-simple-server_linux_amd64.tar.gz
+/broadcastManager_ssh_key.pub
+/broadcastManager_ssh_key
