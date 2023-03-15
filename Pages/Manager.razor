@@ -70,15 +70,16 @@
 
     private async Task OnBtnStart()
     {
-        lock (SharedState.LockObj)
+        // don't even bother to lock if the app state is not stopped
+        if (SharedState.BCastState is not null && SharedState.BCastState != SharedState.BroadcastState.stopped)
+            return; // somebody else pressed the start button already. Don't need to repeat what they've started.
+
+        lock (SharedState.LockObj)// don't want to hold a lock for the whole startup process - just make sure we are first, and then continue or exit.
         {
-            // don't want to hold a lock for the whole startup process - just make sure we are first, and then continue or exit.
             if (SharedState.BCastState is not null && SharedState.BCastState != SharedState.BroadcastState.stopped)
-            {
-                // somebody else pressed the start button already. Don't need to repeat what they've done.
-                return;
-            }
-            SharedState.BCastState = SharedState.BroadcastState.starting;
+                return; // somebody else pressed the start button already. Don't need to repeat what they've started.
+            else
+                SharedState.BCastState = SharedState.BroadcastState.starting;
         }
 
         try
