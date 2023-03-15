@@ -1,8 +1,10 @@
 ﻿@page "/manager"
+@using CliWrap;
 @using Microsoft.AspNetCore.Authorization;
 @using Microsoft.AspNetCore.Components.Authorization;
 @using OBSWebsocketDotNet;
 @using Renci.SshNet;
+@using System.Diagnostics;
 
 @inject IConfiguration configuration;
 @inject IJSRuntime JS
@@ -39,8 +41,11 @@
 
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
+    private string appDir = "";
     private string obsKey = "";
     private string obsUrl = "";
+    private string sshPrivateFile = "";
+    private string sshPublicFile = "";
     private string vultrKey = "";
 
     private bool obs_connected;
@@ -52,9 +57,20 @@
             SharedState.BCastState = SharedState.BroadcastState.stopped;
         obs_connected = obs.IsConnected;
         obs.Connected += onObsConnect;
+
+        appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
         obsKey = configuration["ObsApiKey"] ?? "";
         obsUrl = configuration["ObsUrl"] ?? "";
+        sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
+        sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
         vultrKey = configuration["VultrApiKey"] ?? "";
+
+        if (!Path.IsPathRooted(sshPrivateFile))
+            sshPrivateFile = Path.Combine(appDir, sshPrivateFile);
+
+        if (!Path.IsPathRooted(sshPublicFile))
+            sshPublicFile = Path.Combine(appDir, sshPublicFile);
+
         await Task.Delay(0);
     }
 
@@ -86,6 +102,15 @@
                 SharedState.BCastState = SharedState.BroadcastState.starting;
         }
 
+        // generate an ssh key pair if either doesn't exist
+        if ( !File.Exists(sshPrivateFile) || !File.Exists(sshPublicFile) )
+        {
+            var sshResult = Cli.Wrap("ssh-keygen")
+            .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
+            .WithWorkingDirectory(appDir);
+        }
+
+
         try
         {
             if(! obs.IsConnected )
@@ -96,7 +121,6 @@
             alert_msg = "Connection to OBS service failed : " + ex.Message;
         }
 
-        // if an sshkey doesn't exist - generate one
         // if the rtsp-simple-server archive isn't found, download it.
         //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
         // if obs isn't found on the local server, install it.
