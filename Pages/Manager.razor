@@ -44,6 +44,11 @@
     private string appDir = "";
     private string obsKey = "";
     private string obsUrl = "";
+    private string rtspServerDownloadUrl = "";
+    private const string rtspAppName = "rtsp-simple-server";
+    private const string rtspArchiveName = "rtsp-simple-server.tar.gz";
+    private string rtspAppDir = "";
+    private string rtspArchiveDir = "";
     private string sshPrivateFile = "";
     private string sshPublicFile = "";
     private string vultrKey = "";
@@ -61,6 +66,9 @@
         appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
         obsKey = configuration["ObsApiKey"] ?? "";
         obsUrl = configuration["ObsUrl"] ?? "";
+        rtspServerDownloadUrl = configuration["RtspServerDownloadUrl"] ?? "";
+        rtspAppDir = configuration["RtspAppDir"] ?? "/opt/rtsp-simple-server";
+        rtspArchiveDir = Directory.GetParent(rtspAppDir.TrimEnd(Path.DirectorySeparatorChar)).FullName;
         sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
         sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
         vultrKey = configuration["VultrApiKey"] ?? "";
@@ -105,10 +113,34 @@
         // generate an ssh key pair if either doesn't exist
         if ( !File.Exists(sshPrivateFile) || !File.Exists(sshPublicFile) )
         {
-            var sshResult = Cli.Wrap("ssh-keygen")
+            var sshResult = Cli.Wrap("$(/usr/bin/which ssh-keygen)")
             .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
             .WithWorkingDirectory(appDir);
         }
+
+        // if the rtsp-simple-server isn't running, see if the executable exists & start it
+        Process[] pname = Process.GetProcessesByName("rtsp-simple-server");
+        if (pname.Length == 0)
+        {
+            bool rtspAppExists = File.Exists(Path.Combine(rtspAppDir, rtspAppName));
+            bool rtspArchiveExists = File.Exists(Path.Combine(rtspArchiveDir, rtspArchiveName));
+
+            if (!rtspAppExists && !rtspArchiveExists) // download the archive from source
+            {
+                Cli.Wrap("$(/usr/bin/which curl)")
+                   .WithArguments($"--waitretry=30 --random-wait -O {Path.Combine(rtspArchiveDir, rtspArchiveName)} {rtspServerDownloadUrl} ");
+            }
+
+            if (rtspArchiveExists && !rtspAppExists) // extract the app from the archive 
+            {
+                Cli.Wrap("$(/usr/bin/which tar)").WithArguments($"-xaf {Path.Combine(rtspArchiveDir, rtspArchiveName)}");
+            }
+
+            // start the rtsp-simple-server
+            Cli.Wrap(Path.Combine(rtspAppDir, rtspAppName))
+                .WithArguments(Path.Combine(rtspAppDir, rtspAppName + ".yml") + " &");
+        }
+        
 
 
         try
@@ -121,7 +153,6 @@
             alert_msg = "Connection to OBS service failed : " + ex.Message;
         }
 
-        // if the rtsp-simple-server archive isn't found, download it.
         //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
         // if obs isn't found on the local server, install it.
         // push basic obs config for live and pause scenes, recording out to rtsp-simple-server via ffmpeg multicast
