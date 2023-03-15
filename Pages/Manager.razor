@@ -4,7 +4,7 @@
 @using OBSWebsocketDotNet;
 @using Renci.SshNet;
 
-
+@inject IConfiguration configuration;
 @inject IJSRuntime JS
 
 @*@attribute [Authorize] *@
@@ -39,6 +39,7 @@
 
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
+    private string vultrKey = "";
 
     private bool obs_connected;
     private string alert_msg = "";
@@ -48,8 +49,8 @@
         if (SharedState.BCastState is null)
             SharedState.BCastState = SharedState.BroadcastState.stopped;
         obs_connected = obs.IsConnected;
-        obs.Connected += onConnect;
-
+        obs.Connected += onObsConnect;
+        vultrKey = configuration["VultrApiKey"] ?? "";
         await Task.Delay(0);
     }
 
@@ -61,7 +62,7 @@
         await Task.Delay(0);
     }
 
-    private void onConnect(object sender, EventArgs e)
+    private void onObsConnect(object? sender, EventArgs e)
     {
         obs_connected = obs.IsConnected;
         Refresh();
@@ -90,8 +91,6 @@
             alert_msg = "Connect failed : " + ex.Message;
         }
 
-        // need a config file for vultur api key
-        
         // if an sshkey doesn't exist - generate one
         // if the rtsp-simple-server archive isn't found, download it.
         //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
