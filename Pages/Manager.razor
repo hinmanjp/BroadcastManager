@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authorization;
 @using Microsoft.AspNetCore.Components.Authorization;
 @using OBSWebsocketDotNet;
+@using Renci.SshNet;
 
 
 @inject IJSRuntime JS
@@ -13,10 +14,15 @@
 <AuthorizeView>
     <Authorized>
         <p>Hello, @context.User?.Identity?.Name!</p>
-        <p><button @onclick="OnStart" disabled="@(SharedState.BCastState != SharedState.BroadcastState.stopped)" name="Start">Start</button></p>
+        <p>obs_connected=@obs_connected.ToString()</p>
+        <p><button @onclick="OnBtnStart" disabled="@(SharedState.BCastState != SharedState.BroadcastState.stopped)" name="Start">Start</button></p>
         <p><button @onclick="OnPause" disabled="@(SharedState.BCastState != SharedState.BroadcastState.running )" name="Pause">Pause</button></p>
         <p><button @onclick="OnResume" disabled="@(SharedState.BCastState != SharedState.BroadcastState.paused )" name="Resume">Resume</button></p>
         <p><button @onclick="OnStop" disabled="@(SharedState.BCastState == SharedState.BroadcastState.stopped || SharedState.BCastState == SharedState.BroadcastState.stopping )" name="Stop">Stop</button></p>
+        @if (!String.IsNullOrWhiteSpace(alert_msg))
+        {
+            <p>@alert_msg</p>
+        }
         <video id="local_video" defaultMuted="true" />
         <video id="remote_video">
             <source src="http://66.42.70.209:8000/live.ts", type="video/mp4"/>
@@ -32,12 +38,17 @@
 
 
 @code {
+    private OBSWebsocket obs = new OBSWebsocket();
 
+    private bool obs_connected;
+    private string alert_msg = "";
 
     protected override async Task OnInitializedAsync()
     {
         if (SharedState.BCastState is null)
             SharedState.BCastState = SharedState.BroadcastState.stopped;
+        obs_connected = obs.IsConnected;
+        obs.Connected += onConnect;
 
         await Task.Delay(0);
     }
@@ -50,32 +61,67 @@
         await Task.Delay(0);
     }
 
+    private void onConnect(object sender, EventArgs e)
+    {
+        obs_connected = obs.IsConnected;
+        Refresh();
+    }
 
-    private async Task OnStart()
+    private async Task OnBtnStart()
     {
         lock (SharedState.LockObj)
         {
-            if (SharedState.BCastState is null || SharedState.BCastState == SharedState.BroadcastState.stopped)
+            // don't want to hold a lock for the whole startup process - just make sure we are first, and then continue or exit.
+            if (SharedState.BCastState is not null && SharedState.BCastState != SharedState.BroadcastState.stopped)
             {
-                SharedState.BCastState = SharedState.BroadcastState.starting;
-
-                // start icecast server
-                // get ip address of icecast server
-                // start nice enduser authentication server, send it current credentials
-                // start obs - manage via websocket
-                // start ffmpeg proces producing 2 output streams - one local, one sent to icecast server
-
-                // start play of local video
-                // start play of icecast video
-                OBSWebsocket oBS = new OBSWebsocket();
-
-
-
-                var result = JS.InvokeAsync<object>("PlayVideo", "local_video", "/videos/elephants.mp4", 0);
-
-                SharedState.BCastState = SharedState.BroadcastState.running;
+                // somebody else pressed the start button already. Don't need to repeat what they've done.
+                return;
             }
+            SharedState.BCastState = SharedState.BroadcastState.starting;
         }
+
+        try
+        {
+            if(! obs.IsConnected )
+                await obs.ConnectAsync("ws://172.17.17.45:4455", "***REMOVED***");
+        }
+        catch (Exception ex)
+        {
+            alert_msg = "Connect failed : " + ex.Message;
+        }
+
+        // need a config file for vultur api key
+        
+        // if an sshkey doesn't exist - generate one
+        // if the rtsp-simple-server archive isn't found, download it.
+        //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
+        // if obs isn't found on the local server, install it.
+        // push basic obs config for live and pause scenes, recording out to rtsp-simple-server via ffmpeg multicast
+
+        // start a new instance of the remote broadcast server
+        // get IP address of new remote server
+        // record ip and name somewhere... sqlite db?
+
+        // start ffmpeg stream to obs on local server
+        // make sure obs is running on local server
+        // make sure obs scene selected is camera? Or...
+        // make sure obs is streaming
+        // make sure rtsp-simple-server is running on local server
+
+        // wait for remote server setup & 1st reboot to complete
+        // install ffmpeg
+        // install docker (if needed)
+        // setup rtmp broadcast service on remote server
+        // setup user GUI on the remote server
+        // configure services to start on boot on the remote server
+        // start display of local stream on web page
+        // start display of remote stream on web page
+
+        Refresh();
+        var result = JS.InvokeAsync<object>("PlayVideo", "local_video", "/videos/elephants.mp4", 0);
+
+        SharedState.BCastState = SharedState.BroadcastState.running;
+        
         //Refresh();
         await Task.Delay(0);
     }
@@ -110,6 +156,7 @@
         // don't actually pause - shutdown source & stop & teardown icecast server
         SharedState.BCastState = SharedState.BroadcastState.stopped;
         var result = JS.InvokeAsync<string>("PauseVideo", "local_video");
+        alert_msg = string.Empty;
         Refresh();
         await Task.Delay(0);
     }
@@ -124,5 +171,35 @@
     }
 
 
+    private void SetupRemoteBroadcastServer(string serverIP)
+    {
+
+        string rtspArchivePath = "/opt/rtsp-simple-server.tar.gz";
+        string rtspConfPath = "/opt/rtsp-simple-server.yaml";
+
+        PrivateKeyFile keyFile = new PrivateKeyFile("");
+        Renci.SshNet.PrivateKeyAuthenticationMethod auth = new PrivateKeyAuthenticationMethod(username: "root", keyFiles: keyFile);
+        ConnectionInfo ci = new ConnectionInfo(host: serverIP, username: "root", authenticationMethods: auth);
+        using (ScpClient scpClient = new ScpClient(ci))
+        using (StreamReader appReader = new StreamReader(""))
+        using (StreamReader confReader = new StreamReader(""))
+        {
+            scpClient.Connect();
+            scpClient.Upload(source: appReader.BaseStream, path: rtspArchivePath);
+            scpClient.Upload(source: confReader.BaseStream, path: rtspConfPath);
+            scpClient.Disconnect();
+        }
+
+        using (SshClient sshClient = new SshClient(ci))
+        {
+            sshClient.Connect();
+            if (sshClient.IsConnected)
+            {
+                sshClient.RunCommand("apt install -y ffmpeg");
+                sshClient.RunCommand($"tar -xaf {rtspArchivePath} ; mv {rtspConfPath} /opt/rtsp-simple-server ; ");
+                sshClient.Disconnect();
+            }
+        }
+    }
 }
 

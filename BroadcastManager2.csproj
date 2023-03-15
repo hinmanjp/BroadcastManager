@@ -7,10 +7,31 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Obs.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Core.Renci.SshNet" Version="2021.10.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="7.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
     <PackageReference Include="Microsoft.JSInterop" Version="7.0.3" />
-    <PackageReference Include="obs-websocket-dotnet" Version="5.0.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\obs-websocket-dotnet\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
+    <ProjectReference Include="..\Vultr.API\Vultr.API.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="broadcastManager_ssh_private.key">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="broadcastManager_ssh_private.key.pub">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="rtsp-simple-server_linux_amd64.tar.gz">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
