@@ -5,6 +5,11 @@
 @using OBSWebsocketDotNet;
 @using Renci.SshNet;
 @using System.Diagnostics;
+@using System.Net.NetworkInformation;
+@using Vultr.Clients;
+@using Vultr.Models;
+@using Vultr.Enums;
+@using Microsoft.Data.Sqlite;
 
 @inject IConfiguration configuration;
 @inject IJSRuntime JS
@@ -41,7 +46,10 @@
 
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
+    private string adminPW = "";
     private string appDir = "";
+    private string broadcastManagerDnsName = "";
+    private string broadcastServerDnsName = "";
     private string obsKey = "";
     private string obsUrl = "";
     private string rtspServerDownloadUrl = "";
@@ -64,8 +72,11 @@
         obs.Connected += onObsConnect;
 
         appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
+        broadcastManagerDnsName = configuration["BroadcastManagerDnsName"] ?? "";
+        broadcastServerDnsName = configuration["BroadcastServerDnsName"] ?? "";
+
         obsKey = configuration["ObsApiKey"] ?? "";
-        obsUrl = configuration["ObsUrl"] ?? "";
+        obsUrl = configuration["ObsUrl"] ?? "ws://127.0.0.1:4455";
         rtspServerDownloadUrl = configuration["RtspServerDownloadUrl"] ?? "";
         rtspAppDir = configuration["RtspAppDir"] ?? "/opt/rtsp-simple-server";
         rtspArchiveDir = Directory.GetParent(rtspAppDir.TrimEnd(Path.DirectorySeparatorChar)).FullName;
@@ -79,12 +90,22 @@
         if (!Path.IsPathRooted(sshPublicFile))
             sshPublicFile = Path.Combine(appDir, sshPublicFile);
 
+        // update dns records so that the broadcast manager can be found
+        var dnsSplit = SplitDnsName(broadcastManagerDnsName);
+        string ipv4Address = GetLocalIPv4();
+
+        var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
+        await dns.UpdateDnsAsync(dnsSplit.ZoneName, dnsSplit.RecordName, ipv4Address, new CancellationToken());
+
+
         await Task.Delay(0);
     }
 
+
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender )
+        if (firstRender)
         {
         }
         await Task.Delay(0);
@@ -111,41 +132,77 @@
         }
 
         // generate an ssh key pair if either doesn't exist
-        if ( !File.Exists(sshPrivateFile) || !File.Exists(sshPublicFile) )
+        if (!File.Exists(sshPrivateFile) || !File.Exists(sshPublicFile))
         {
             var sshResult = Cli.Wrap("$(/usr/bin/which ssh-keygen)")
             .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
             .WithWorkingDirectory(appDir);
         }
 
-        // if the rtsp-simple-server isn't running, see if the executable exists & start it
-        Process[] pname = Process.GetProcessesByName("rtsp-simple-server");
-        if (pname.Length == 0)
-        {
-            bool rtspAppExists = File.Exists(Path.Combine(rtspAppDir, rtspAppName));
-            bool rtspArchiveExists = File.Exists(Path.Combine(rtspArchiveDir, rtspArchiveName));
+        //// if the rtsp-simple-server isn't running, see if the executable exists & start it
+        //Process[] rtspP = Process.GetProcessesByName("rtsp-simple-server");
+        //if (rtspP.Length == 0)
+        //{
+        //    bool rtspAppExists = File.Exists(Path.Combine(rtspAppDir, rtspAppName));
+        //    bool rtspArchiveExists = File.Exists(Path.Combine(rtspArchiveDir, rtspArchiveName));
 
-            if (!rtspAppExists && !rtspArchiveExists) // download the archive from source
-            {
-                Cli.Wrap("$(/usr/bin/which curl)")
-                   .WithArguments($"--waitretry=30 --random-wait -O {Path.Combine(rtspArchiveDir, rtspArchiveName)} {rtspServerDownloadUrl} ");
-            }
+        //    if (!rtspAppExists && !rtspArchiveExists) // download the archive from source
+        //    {
+        //        Cli.Wrap("$(/usr/bin/which wget)")
+        //           .WithArguments($"--waitretry=30 --random-wait -O {Path.Combine(rtspArchiveDir, rtspArchiveName)} {rtspServerDownloadUrl} ");
+        //    }
 
-            if (rtspArchiveExists && !rtspAppExists) // extract the app from the archive 
-            {
-                Cli.Wrap("$(/usr/bin/which tar)").WithArguments($"-xaf {Path.Combine(rtspArchiveDir, rtspArchiveName)}");
-            }
+        //    if (rtspArchiveExists && !rtspAppExists) // extract the app from the archive 
+        //    {
+        //        Cli.Wrap("$(/usr/bin/which tar)").WithArguments($"-xaf {Path.Combine(rtspArchiveDir, rtspArchiveName)}");
+        //    }
 
-            // start the rtsp-simple-server
-            Cli.Wrap(Path.Combine(rtspAppDir, rtspAppName))
-                .WithArguments(Path.Combine(rtspAppDir, rtspAppName + ".yml") + " &");
-        }
-        
+        //    // start the rtsp-simple-server
+        //    Cli.Wrap(Path.Combine(rtspAppDir, rtspAppName))
+        //        .WithArguments(Path.Combine(rtspAppDir, rtspAppName + ".yml") + " &");
+        //}
+
+        //// if obs isn't found on the local server, install it.
+        //// push basic obs config for live and pause scenes, recording out to rtsp-simple-server via ffmpeg multicast
+        //Process[] obsP = Process.GetProcessesByName("rtsp-simple-server");
+        //if (obsP.Length == 0)
+        //{
+        //    CliWrap.Builders.CredentialsBuilder cb = new CliWrap.Builders.CredentialsBuilder();
+        //    cb.SetUserName("***REMOVED***");
+        //    cb.SetPassword(adminPW);
+
+        //    // if app doesn't exist...
+        //    Cli.Wrap("$(/usr/bin/which sudo)")
+        //        .WithArguments("add-apt-repository -y ppa:obsproject/obs-studio")
+        //        .WithCredentials(cb.Build())
+        //        ;
+
+        //}
+
+        // check to see if we already have a record of a remote broadcast server running
+        // if we do - check to see if the VULTR API shows it is running
+        // if it is, check to see if we can connect to it
+        // destroy it if we can't connect
+        // start a new one if it doesn't exist
+
+        var viInfo = StartVultrVm();
+
+        // save the id, ip address, and label of the new instance
+        SaveRemoteVmInfo(viInfo);
+
+        // update DNS records so that the remote server can be found
+        var dnsSplit = SplitDnsName(broadcastServerDnsName);
+        var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
+        await dns.UpdateDnsAsync(dnsSplit.ZoneName, dnsSplit.RecordName, viInfo.PublicIPv4, new CancellationToken());
 
 
+        // start ffmpeg stream to obs on local server
+        // make sure obs is running on local server
+
+        // connect to the obs websocket
         try
         {
-            if(! obs.IsConnected )
+            if (!obs.IsConnected)
                 await obs.ConnectAsync(obsUrl, obsKey);
         }
         catch (Exception ex)
@@ -154,15 +211,8 @@
         }
 
         //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
-        // if obs isn't found on the local server, install it.
-        // push basic obs config for live and pause scenes, recording out to rtsp-simple-server via ffmpeg multicast
 
-        // start a new instance of the remote broadcast server
-        // get IP address of new remote server
-        // record ip and name somewhere... sqlite db?
-
-        // start ffmpeg stream to obs on local server
-        // make sure obs is running on local server
+        
         // make sure obs scene selected is camera? Or...
         // make sure obs is streaming
         // make sure rtsp-simple-server is running on local server
@@ -180,7 +230,7 @@
         var result = JS.InvokeAsync<object>("PlayVideo", "local_video", "/videos/elephants.mp4", 0);
 
         SharedState.BCastState = SharedState.BroadcastState.running;
-        
+
         //Refresh();
         await Task.Delay(0);
     }
@@ -230,6 +280,47 @@
     }
 
 
+    private void SaveRemoteVmInfo(VultrInstanceInfo viInfo)
+    {
+
+        using (var connection = new SqliteConnection("Data Source=broadcast.db"))
+        {
+            connection.Open(); // will create the db file if it doesn't exist
+            var command = connection.CreateCommand();
+
+            command.CommandText = @"SELECT name 
+FROM
+  sqlite_schema
+WHERE
+  type ='table' 
+  AND name = 'remote_vm'";
+
+            if (command.ExecuteScalar() is null)
+            {
+                command.CommandText = "CREATE TABLE remote_vm (TEXT vm_id, TEXT vm_ip, TEXT vm_label);";
+                command.ExecuteNonQuery();
+            }
+
+            command.CommandText =
+                @"INSERT INTO remote_vm (vm_id, vm_ip, vm_label) SELECT $id, $ip, $label;";
+
+            command.Parameters.AddWithValue("$id", viInfo.InstanceID);
+            command.Parameters.AddWithValue("$ip", viInfo.PublicIPv4);
+            command.Parameters.AddWithValue("$label", viInfo.InstanceLabel);
+            command.ExecuteNonQuery();
+
+            //using (var reader = command.ExecuteReader())
+            //{
+            //    while (reader.Read())
+            //    {
+            //        var name = reader.GetString(0);
+
+            //        Console.WriteLine($"Hello, {name}!");
+            //    }
+            //}
+        }
+    }
+
     private void SetupRemoteBroadcastServer(string serverIP)
     {
 
@@ -260,5 +351,105 @@
             }
         }
     }
+
+    private VultrInstanceInfo StartVultrVm()
+    {
+
+        string sshPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHdSv++W8xf2H2mUj4bXIpkZrr6mi5tTG7Qq6i4dgGin IF_North_BroadcastManager";
+
+        Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: "***REMOVED***", apiURL: "https://api.vultr.com/v2/");
+
+        var sshList = vc.SSHKey.GetSSHKeys();
+        var sshKey = sshList.SshKeys.Where(s => s.ssh_key == sshPublicKey).FirstOrDefault(new Ssh_Key());
+
+        if (string.IsNullOrEmpty(sshKey.id))
+            sshKey = vc.SSHKey.CreateSSHKey(name: "IF_North_BroadcastManager", ssh_key: sshPublicKey).SshKeys.FirstOrDefault();
+
+        var regions = vc.Region.GetRegions();
+        string[] excludedRegions = new[] { "atl", "ewr", "hnl", "mia", "ord", "lax" };
+        var usRegions = regions.Regions.Where(r => r.country == "US" && !excludedRegions.Any(e => r.id.Contains(e))).ToList();
+
+        var plans = vc.Plan.GetPlans(Vultr.Enums.PlanTypes.all);
+        var sizedPlans = plans.Plans.Where(p => p.vcpu_count >= 2 && p.ram >= 4000 && p.type == PlanTypes.vhf.ToString()).ToList();
+
+        var r2 = sizedPlans.FindAll(p => usRegions.Any(r => p.locations.Contains(r.id))).OrderBy(p => p.monthly_cost).ToArray();
+        var plan1 = r2.FirstOrDefault(new Plan());
+        var regionID = plan1.locations.Where(p => usRegions.Any(r => p.Contains(r.id))).FirstOrDefault("");
+
+        var os_result = vc.OperatingSystem.GetOperatingSystems();
+        var os = os_result.osList.Where(o => o.family == "ubuntu" && o.arch == "x64" && o.name.Contains("LTS")).ToList().OrderBy(o => o.name).ToList().LastOrDefault(new Os());
+
+        var script = vc.StartupScript.GetStartupScripts().StartupScripts.Where(s => s.name == "test").FirstOrDefault(new Startup_Scripts());
+
+        var sshkey = vc.SSHKey.GetSSHKeys();
+
+        var instanceInfo = vc.Instance.CreateInstance(Label: "Broadcaster", Hostname: "broadcaster", RegionID: regionID, PlanID: plan1.id, SourceID: os.id.ToString(), Source: Vultr.Clients.InstanceClient.SourceType.os, ScriptID: script.id, SshKeyIDs: new[] { sshKey.id });
+
+        VultrInstanceInfo viInfo = new VultrInstanceInfo() { InstanceID = instanceInfo.Instances[0].id };
+
+        var instanceDetail = vc.Instance.GetInstance(viInfo.InstanceID);
+        viInfo.PublicIPv4 = instanceDetail.Instances[0].main_ip;
+        viInfo.InstanceLabel = instanceDetail.Instances[0].label;
+
+        //var instanceList = vc.Instance.ListInstances();
+        //var bcastInstance = instanceList.Instances.Where(o => o.label == "Broadcaster").FirstOrDefault(new Instance());
+
+        //var instanceDelResult = vc.Instance.DeleteInstance(bcastInstance.id);
+        return viInfo;
+    }
+
+    private struct VultrInstanceInfo
+    {
+        public string InstanceID { get; set; }
+        public string PublicIPv4 { get; set; }
+        public string InstanceLabel { get; set; }
+    }
+
+    private struct DnsSplit
+    {
+        public string RecordName { get; set; }
+        public string ZoneName { get; set; }
+    }
+
+    private DnsSplit SplitDnsName(string dnsName)
+    {
+        var regex = new System.Text.RegularExpressions.Regex(@"(?<record>.*)\.(?<zone>[^.]*\..*$)");
+        var match = regex.Match(broadcastManagerDnsName);
+        var recordName = match.Groups["record"].Value;
+        var zoneName = match.Groups["zone"].Value;
+        DnsSplit split = new DnsSplit { RecordName = recordName, ZoneName = zoneName };
+        return split;
+    }
+
+    internal static string GetLocalIPv4(NetworkInterfaceType _type = NetworkInterfaceType.Unknown)
+    {  // Checks your IP adress from the local network connected to a gateway. This to avoid issues with double network cards
+        string output = "";  // default output
+        foreach (NetworkInterface item in NetworkInterface.GetAllNetworkInterfaces()) // Iterate over each network interface
+        {  // Find the network interface which has been provided in the arguments, break the loop if found
+            if ((_type != NetworkInterfaceType.Unknown || item.NetworkInterfaceType == _type ) && item.OperationalStatus == OperationalStatus.Up)
+            {   // Fetch the properties of this adapter
+                IPInterfaceProperties adapterProperties = item.GetIPProperties();
+                // Check if the gateway adress exist, if not its most likley a virtual network or smth
+                if (adapterProperties.GatewayAddresses.FirstOrDefault() != null)
+                {   // Iterate over each available unicast adresses
+                    foreach (UnicastIPAddressInformation ip in adapterProperties.UnicastAddresses)
+                    {   // If the IP is a local IPv4 adress
+                        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {   // we got a match!
+                            output = ip.Address.ToString();
+                            break;  // break the loop!!
+                        }
+                    }
+                }
+            }
+            // Check if we got a result if so break this method
+            if (output != "") { break; }
+        }
+        // Return results
+        return output;
+    }
+
+
+
 }
 

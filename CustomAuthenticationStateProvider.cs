@@ -5,10 +5,14 @@
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Components.Authorization;
 
+
     public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
+        private readonly IConfiguration _configuration;
+
         public override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
+
             var identity = new ClaimsIdentity();
             var user = new ClaimsPrincipal(identity);
 
@@ -35,8 +39,17 @@
         private bool IsValid(string authCode)
         {
             //TODO - Check authcode against sqlite DB
-            bool isValid = (authCode == "***REMOVED***");
-            return isValid;
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json")
+                .Build();
+            string? AppMasterPassword = configuration.GetValue<string>("AppMasterPassword");
+            if (!string.IsNullOrEmpty(AppMasterPassword) && authCode == AppMasterPassword)
+                return true;
+            else
+            {
+                // check against auth table in db
+            }
+            return false;
         }
     }
 }
