@@ -46,6 +46,8 @@
 
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
+    TaskCompletionSource<bool>? tcs = null;
+
     private string adminPW = "";
     private string appDir = "";
     private string broadcastManagerDnsName = "";
@@ -114,6 +116,7 @@
     private void onObsConnect(object? sender, EventArgs e)
     {
         obs_connected = obs.IsConnected;
+        tcs?.TrySetResult(true);
         Refresh();
     }
 
@@ -210,14 +213,29 @@
             alert_msg = "Connection to OBS service failed : " + ex.Message;
         }
 
+
+        tcs = new TaskCompletionSource<bool>();
+        var obs_connect = tcs.Task;
+        int timeout = 10 * 1000;
+        if (!(await Task.WhenAny(obs_connect, Task.Delay(timeout)) == obs_connect))
+        {
+            // obs didn't start in time!
+            alert_msg = "The OBS socket didn't connect in time!";
+            return;
+        }
+
         //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
 
-        
         // make sure obs scene selected is camera? Or...
+        obs.SetCurrentProgramScene("Camera");
+
         // make sure obs is streaming
+        obs.StartRecord();
+
         // make sure rtsp-simple-server is running on local server
 
-        // wait for remote server setup & 1st reboot to complete
+        // wait for remote server setup & 1st reboot to complete - poll & sleep
+        
         // install ffmpeg
         // install docker (if needed)
         // setup rtmp broadcast service on remote server
