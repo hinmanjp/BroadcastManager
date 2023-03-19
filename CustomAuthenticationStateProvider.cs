@@ -38,12 +38,8 @@
 
         private bool IsValid(string authCode)
         {
-            //TODO - Check authcode against sqlite DB
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
-                .Build();
-            string? AppMasterPassword = configuration.GetValue<string>("AppMasterPassword");
-            if (!string.IsNullOrEmpty(AppMasterPassword) && authCode == AppMasterPassword)
+            string? AppMasterPassword = AppSettings.Config["AppMasterPassword"];
+            if (!string.IsNullOrWhiteSpace(AppMasterPassword) && authCode == AppMasterPassword)
                 return true;
             else
             {

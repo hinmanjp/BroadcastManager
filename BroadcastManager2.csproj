@@ -4,6 +4,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>57e8df11-5f23-475f-a4b7-1b2b8f29b79e</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,10 +28,10 @@
 
   <ItemGroup>
     <None Update="broadcastManager_ssh_key">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="broadcastManager_ssh_key.pub">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="rtsp-simple-server_linux_amd64.tar.gz">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
