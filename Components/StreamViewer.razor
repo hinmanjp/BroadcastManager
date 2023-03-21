@@ -1,0 +1,48 @@
+﻿@namespace BroadcastManager2
+@inject IJSRuntime JS
+
+<style>
+    #player_id {
+        width: @width;
+        height: @height;
+    }
+</style>
+
+<div id="player_id"></div>
+
+@code
+{
+    private IJSObjectReference? jsModule;
+    private string width = "640px";
+    private string height = "480px";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "/Components/StreamViewer.razor.js");
+        }
+        await base.OnAfterRenderAsync(firstRender);
+        await Task.Delay(0);
+    }
+
+
+    public async Task StartPlayerAsync(string StreamUrl, int Width=0, int Height=0)
+    {
+        if(Width > 0)
+            width = Width + "px";
+        if(Height > 0)
+            height = Height + "px";
+        if(Width > 0 || Height > 0)
+            _ = InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+
+        var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js");
+        if (jsModule is not null)
+            await jsModule.InvokeVoidAsync("startPlayer", StreamUrl);
+        await Task.Delay(0);
+    }
+
+}

@@ -1,5 +1,6 @@
 ﻿@page "/manager"
 @using CliWrap;
+@using BroadcastManager2.Components;
 @using Microsoft.AspNetCore.Authorization;
 @using Microsoft.AspNetCore.Components.Authorization;
 @using OBSWebsocketDotNet;
@@ -32,15 +33,8 @@
             <p>@alert_msg</p>
         }
 
+        <StreamViewer @ref="localViewer"/>
 
-
-@* <iframe width="560" height="315" src="https://test.willowbrook-ward.org:8888/sac1" frameborder="0" allowfullscreen></iframe> *@
-      
-
-@*        <video id="local_video" defaultMuted="true" />
-        <video id="remote_video">
-            <source src="http://66.42.70.209:8000/live.ts", type="video/mp4"/>
-        </video>*@
     </Authorized>
     <NotAuthorized>
         @{
@@ -54,6 +48,7 @@
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
     private TaskCompletionSource<bool>? tcs = null;
+    private StreamViewer? localViewer;
 
     private string adminPW = "";
     private string appDir = "";
@@ -78,6 +73,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+
+        localViewer = new StreamViewer();
+
         if (SharedState.BCastState is null)
             SharedState.BCastState = SharedState.BroadcastState.stopped;
         obs_connected = obs.IsConnected;
@@ -218,8 +216,11 @@
         obs.SetCurrentProgramScene("Camera");
 
         // make sure obs is streaming
-        if(!obs.GetRecordStatus().IsRecording)
-            obs.StartRecord();
+        //if(!obs.GetRecordStatus().IsRecording)
+        //    obs.StartRecord();
+
+        if (!(obs.GetStreamStatus().IsActive || obs.GetStreamStatus().IsReconnecting))
+            obs.StartStream();
 
         // wait for remote server setup & 1st reboot to complete - poll & sleep
         int remoteCheckCount = 1;
@@ -246,9 +247,9 @@
         // start display of remote stream on web page
         alert_msg = "";
         Refresh();
-        //var result = JS.InvokeAsync<object>("PlayVideo", "local_video", "/videos/elephants.mp4", 0);
 
-        var result = JS.InvokeAsync<object>("PlayVideo", "local_video", "rtsp://172.17.17.45:8554/sac1", 0);
+        if(localViewer is not null)
+            await localViewer.StartPlayerAsync(StreamUrl: "wss://test.willowbrook-ward.org:3334/app/sac1");
 
         SharedState.BCastState = SharedState.BroadcastState.running;
 
@@ -431,13 +432,13 @@ WHERE
 
     private void SetupRemoteBroadcastServer(string serverIP)
     {
-
         string rtspArchivePath = "/opt/rtsp-simple-server.tar.gz";
         string rtspConfPath = "/opt/rtsp-simple-server.yaml";
 
         PrivateKeyFile keyFile = new PrivateKeyFile(sshPrivateFile);
         Renci.SshNet.PrivateKeyAuthenticationMethod auth = new PrivateKeyAuthenticationMethod(username: "root", keyFiles: keyFile);
         ConnectionInfo ci = new ConnectionInfo(host: serverIP, username: "root", authenticationMethods: auth);
+
         using (ScpClient scpClient = new ScpClient(ci))
         using (StreamReader appReader = new StreamReader(rtspArchiveFullPath))
         //using (StreamReader confReader = new StreamReader(""))
