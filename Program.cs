@@ -24,7 +24,10 @@ var dns = new UpdateCloudflareDNS(app.Configuration["CloudFlareTokenKey"] ?? "")
 await dns.UpdateDnsAsync(dnsSplit.ZoneName, dnsSplit.RecordName, ipv4Address, new CancellationToken());
 
 string rtspArchiveName = "rtsp-simple-server.tar.gz";
-string appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
+string appDir = "";
+Process currentProcess = Process.GetCurrentProcess();
+if (currentProcess != null && currentProcess.MainModule != null)
+    appDir = Path.GetDirectoryName(currentProcess.MainModule.FileName) ?? "";
 string rtspArchiveFullPath = Path.Combine(appDir,rtspArchiveName);
 
 if (!File.Exists(rtspArchiveFullPath))
