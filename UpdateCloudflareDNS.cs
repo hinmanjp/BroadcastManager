@@ -4,6 +4,7 @@ using CloudFlare.Client.Api.Authentication;
 using CloudFlare.Client.Api.Zones.DnsRecord;
 using CloudFlare.Client.Enumerators;
 using CloudFlare.Client;
+using System.Security.Cryptography.Xml;
 
 namespace BroadcastManager2
 {
@@ -69,7 +70,7 @@ namespace BroadcastManager2
             }
             catch (Exception ex)
             {
-                //_logger.Error(ex, "Unexpected exception happened");
+                var e1 = ex;
             }
             return false;
         }
@@ -98,7 +99,7 @@ namespace BroadcastManager2
                     }
                 }
             }
-            catch (Exception ex) { }
+            catch (Exception ex) { var e1 = ex; }
             return false;
         }
 
