@@ -96,18 +96,21 @@
         obs_connected = obs.IsConnected;
         obs.Connected += onObsConnect;
 
-        appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
-        localServerDnsName = configuration["LocalServerDnsName"] ?? "";
-        remoteServerDnsName = configuration["RemoteServerServerDnsName"] ?? "";
-        remoteDnsSplit = DnsHelper.SplitDnsName(remoteServerDnsName);
 
-        obsKey = configuration["ObsApiKey"] ?? "";
-        obsUrl = configuration["ObsUrl"] ?? "ws://127.0.0.1:4455";
-        rtspServerDownloadUrl = configuration["RtspServerDownloadUrl"] ?? "";
-        sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
-        sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
-        vultrKey = configuration["VultrApiKey"] ?? "";
-        waitForObsConnection = Convert.ToInt32(configuration["WaitSecsForObsConnection"] ?? "10");
+        appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
+        
+        // load config settings from appsettings.json
+        localServerDnsName      = configuration["LocalServerDnsName"] ?? "";
+        remoteServerDnsName     = configuration["RemoteServerDnsName"] ?? "";
+        obsKey                  = configuration["ObsApiKey"] ?? "";
+        obsUrl                  = configuration["ObsUrl"] ?? "ws://127.0.0.1:4455";
+        rtspServerDownloadUrl   = configuration["RtspServerDownloadUrl"] ?? "";
+        sshPrivateFile          = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
+        sshPublicFile           = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
+        vultrKey                = configuration["VultrApiKey"] ?? "";
+        waitForObsConnection    = Convert.ToInt32(configuration["WaitSecsForObsConnection"] ?? "10");
+
+        remoteDnsSplit = DnsHelper.SplitDnsName( remoteServerDnsName );
 
         if (!Path.IsPathRooted(sshPrivateFile))
             sshPrivateFile = Path.Combine(appDir, sshPrivateFile);
@@ -117,8 +120,6 @@
 
         await Task.Delay(0);
     }
-
-
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -170,12 +171,12 @@
         // start a new one if it doesn't exist
 
         // var viInfo = await StartVultrVm();
+        VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40" };
 
         // save the id, ip address, and label of the new instance
-        // SaveRemoteVmInfo(viInfo);
+        SaveRemoteVmInfo(viInfo);
 
         // update DNS records so that the remote server can be found
-        VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40" };
 
         var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
         await dns.UpdateDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, viInfo.PublicIPv4, new CancellationToken());
@@ -207,9 +208,6 @@
         obs.SetCurrentProgramScene("Camera");
 
         // make sure obs is streaming
-        //if(!obs.GetRecordStatus().IsRecording)
-        //    obs.StartRecord();
-
         if (!(obs.GetStreamStatus().IsActive || obs.GetStreamStatus().IsReconnecting))
             obs.StartStream();
 
