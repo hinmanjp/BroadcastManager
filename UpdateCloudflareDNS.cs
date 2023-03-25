@@ -20,7 +20,7 @@ namespace BroadcastManager2
         }
 
 
-        public async Task UpdateDnsAsync(string zoneName, string recordName, string IPv4address, CancellationToken cancellationToken)
+        public async Task<bool> UpdateDnsAsync(string zoneName, string recordName, string IPv4address, CancellationToken cancellationToken)
         {
             string fullName = recordName + "." + zoneName;
             try
@@ -49,10 +49,8 @@ namespace BroadcastManager2
 
                             var updateResult = (await client.Zones.DnsRecords.UpdateAsync(zone.Id, record.Id, modified, cancellationToken));
 
-                            if (!updateResult.Success)
-                            {
-
-                            }
+                            if ( updateResult.Success )
+                                return true;
                         }
                     }
                     else // can't find an existing record to update - need to create a new record
@@ -65,6 +63,7 @@ namespace BroadcastManager2
                             Proxied = false,
                         };
                         var addResult = await client.Zones.DnsRecords.AddAsync(zone.Id, newRecord, cancellationToken);
+                        if ( addResult.Success ) return true;
                     }
                 }
             }
@@ -72,10 +71,11 @@ namespace BroadcastManager2
             {
                 //_logger.Error(ex, "Unexpected exception happened");
             }
+            return false;
         }
 
 
-        public async Task DeleteDnsAsync(string zoneName, string recordName, CancellationToken cancellationToken)
+        public async Task<bool> DeleteDnsAsync(string zoneName, string recordName, CancellationToken cancellationToken)
         {
             string fullName = recordName + "." + zoneName;
             try
@@ -94,11 +94,12 @@ namespace BroadcastManager2
                     if (record is not null && record.Name == fullName)
                     {
                         var delResult = await client.Zones.DnsRecords.DeleteAsync(zone.Id, record.Id, cancellationToken);
+                        if ( delResult.Success ) return true;
                     }
                 }
             }
             catch (Exception ex) { }
-
+            return false;
         }
 
 
