@@ -38,7 +38,10 @@
 
         private bool IsValid(string authCode)
         {
-            string? AppMasterPassword = AppSettings.Config["AppMasterPassword"];
+            string AppMasterPassword = "";
+            if(AppSettings.Config != null)
+                AppMasterPassword = AppSettings.Config["AppMasterPassword"] ?? "";
+
             if (!string.IsNullOrWhiteSpace(AppMasterPassword) && authCode == AppMasterPassword)
                 return true;
             else
