@@ -23,7 +23,7 @@
 <AuthorizeView>
     <Authorized>
         <p>Hello, @context.User?.Identity?.Name!</p>
-        @*<p>obs_connected=@obs_connected.ToString()</p>*@
+        <p>Broadcast state: @SharedState.CurrentState.ToString()</p>
         <p><button @onclick="OnBtnStart" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.stopped)" name="Start">Start</button></p>
         <p><button @onclick="OnPause" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.running )" name="Pause">Pause</button></p>
         <p><button @onclick="OnResume" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.paused )" name="Resume">Resume</button></p>
@@ -50,12 +50,13 @@
     // Update DNS isn't working at least some of the time
     // Something is crashing during vm destroy
     // Delete DNS isn't working
+    // Timer to destroy VM after xx time - let the remote viewers finish watching before the server goes away...
     startup OvenMediaEngin docker container on boot
     Shared state / button changes not working like it's supposed to...
     Start vpn on boot
     Fix RTMP auth
     Show remote player below local player
-    size the local player according to device size
+    // size the local player according to device size
 
     Watch CPU / memory usage on remote server
 
@@ -157,6 +158,7 @@
             sTimer.ShowTimer();
             sTimer.StartTimer();
         }
+        // REALLY should report a problem on the login page and just not work if a private key has not been provided / configured. App needs the private key of the Local Server to work properly.
         // generate an ssh key pair if either doesn't exist
         if (!File.Exists(sshPrivateFile) || !File.Exists(sshPublicFile))
         {
@@ -282,8 +284,18 @@
                 obs.StopStream();
         }
 
+        if(localViewer != null)
+            localViewer.HidePlayer();
+
         await DisableRtmpPush();
+        alert_msg = "Waiting for remote viewers to finish before removing the remote server...";
+        // should show a countdown timer here...
+        Refresh();
+
         // destroy remote server
+        // but not right away. Remote viewers need to finish watching...
+        // should really make all of this cancelable if somebody wants to start again before the vm is destroyed.
+        await Task.Delay(TimeSpan.FromMinutes(5));
         await StopVultrVm();
 
         // remove dns records

@@ -12,13 +12,18 @@
     }
 </style>
 
-<div id="player_id"></div>
+@if (showPlayer)
+{
+    <div id="player_id"></div>
+}
 
 @code
 {
     private IJSObjectReference? jsModule;
     private string width = "90%";
     private string height = "auto";
+
+    private bool showPlayer = true;
 
     public enum SourceType
     {
@@ -38,9 +43,17 @@
         await Task.Delay(0);
     }
 
+    public void HidePlayer()
+    {
+        showPlayer = false;
+        Refresh();
+    }
 
     public async Task StartPlayerAsync(string StreamUrl, SourceType sourceType, int Width=0, int Height=0)
     {
+        showPlayer = true;
+        Refresh();
+
         if(Width > 0)
             width = Width + "px";
         if(Height > 0)
@@ -65,6 +78,11 @@
         if (jsModule is not null)
             await jsModule.InvokeVoidAsync("startPlayer", StreamUrl, sType);
         await Task.Delay(0);
+    }
+
+    private void Refresh()
+    {
+        _ = InvokeAsync( () => { StateHasChanged(); } );
     }
 
 }
