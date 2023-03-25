@@ -1,0 +1,66 @@
+﻿@namespace BroadcastManager2.Components
+@if (showTimer)
+{
+    <p>@time</p>
+}
+
+@code {
+    private string time = "00:00";
+    private bool runTimer = false;
+    private bool showTimer = true;
+    private DateTime startTime;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        { }
+        await base.OnAfterRenderAsync(firstRender);
+        await Task.Delay(0);
+    }
+
+    public void StartTimer()
+    {
+        runTimer = true;
+        startTime = DateTime.UtcNow;
+        RunTimer();
+    }
+
+    public void StopTimer()
+    {
+        runTimer = false;
+    }
+
+    public void HideTimer()
+    {
+        showTimer = false;
+        Refresh();
+    }
+
+    public void ResetTimer()
+    {
+        time = "00:00";
+        Refresh();
+    }
+
+    public void ShowTimer()
+    {
+        showTimer = true;
+        Refresh();
+    }
+
+    private async void RunTimer()
+    {
+        while (runTimer)
+        {
+            time = (DateTime.UtcNow - startTime).ToString(@"mm\:ss");
+            Refresh();
+            await Task.Delay(1000);
+        }
+    }
+
+    private void Refresh()
+    {
+        _ = InvokeAsync(() => { StateHasChanged(); });
+    }
+
+}
