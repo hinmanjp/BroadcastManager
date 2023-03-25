@@ -48,8 +48,8 @@
     // Modify enable / disable rtmp push to modify & start / stop stunnel
     // setup stunnel as a service
     // Update DNS isn't working at least some of the time
-    Something is crashing during vm destroy
-    % Delete DNS isn't working
+    // Something is crashing during vm destroy
+    // Delete DNS isn't working
     startup OvenMediaEngin docker container on boot
     Shared state / button changes not working like it's supposed to...
     Start vpn on boot
@@ -172,8 +172,8 @@
         // destroy it if we can't connect
         // start a new one if it doesn't exist
 
-        // var viInfo = await StartVultrVm();
-        VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40", InstanceID = "dummy_id", InstanceLabel = "dummy_label" };
+        var viInfo = await StartVultrVm();
+        //VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40", InstanceID = "dummy_id", InstanceLabel = "dummy_label" };
 
         // save the id, ip address, and label of the new instance
         SaveRemoteVmInfo(viInfo);
@@ -417,6 +417,7 @@
                 catch (Exception ex)
                 {
                     // won't be able to connect until the remote server is fully provisioned. Don't need to report the failures.
+                    var e1 = ex;
                 }
 
             if (sshClient.IsConnected)
@@ -472,22 +473,12 @@ WHERE
             command.Parameters.AddWithValue("$ip", viInfo.PublicIPv4);
             command.Parameters.AddWithValue("$label", viInfo.InstanceLabel);
             command.ExecuteNonQuery();
-
-            //using (var reader = command.ExecuteReader())
-            //{
-            //    while (reader.Read())
-            //    {
-            //        var name = reader.GetString(0);
-
-            //        Console.WriteLine($"Hello, {name}!");
-            //    }
-            //}
         }
     }
 
     private void SetupRemoteBroadcastServer(string serverIP)
     {
-        string authServiceRemoteDir = "/opt/broadcastAuth";
+        // string authServiceRemoteDir = "/opt/broadcastAuth";
         string sslCertPath = configuration["SslCertPath"] ?? "";
         string sslKeyPath = configuration["SslKeyPath"] ?? "";
         string sslPfxPath = configuration["SslPfxPath"] ?? "";
@@ -575,7 +566,10 @@ WHERE
         var sshKey = sshList.SshKeys.Where(s => s.ssh_key == sshPublicKey).FirstOrDefault(new Ssh_Key());
 
         if (string.IsNullOrEmpty(sshKey.id))
-            sshKey = vc.SSHKey.CreateSSHKey(name: "IF_North_BroadcastManager", ssh_key: sshPublicKey).SshKeys.FirstOrDefault();
+            sshKey = vc.SSHKey.CreateSSHKey(name: "ChurchBroadcastManager", ssh_key: sshPublicKey).SshKeys.FirstOrDefault();
+
+        if ( sshKey is null ) // just go with an empty key if we don't have one...
+            sshKey = new Ssh_Key();
 
         var regions = vc.Region.GetRegions();
         string[] excludedRegions = new[] { "atl", "ewr", "hnl", "mia", "ord", "lax" };
@@ -592,8 +586,6 @@ WHERE
         var os = os_result.osList.Where(o => o.family == "ubuntu" && o.arch == "x64" && o.name.Contains("LTS")).ToList().OrderBy(o => o.name).ToList().LastOrDefault(new Os());
 
         var script = vc.StartupScript.GetStartupScripts().StartupScripts.Where(s => s.name == "test").FirstOrDefault(new Startup_Scripts());
-
-        var sshkey = vc.SSHKey.GetSSHKeys();
 
         var instanceInfo = vc.Instance.CreateInstance(Label: "Broadcaster", Hostname: "broadcaster", RegionID: regionID, PlanID: plan1.id, SourceID: os.id.ToString(), Source: Vultr.Clients.InstanceClient.SourceType.os, ScriptID: script.id, SshKeyIDs: new[] { sshKey.id });
 
