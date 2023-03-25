@@ -159,6 +159,7 @@
             sTimer.StartTimer();
         }
         // REALLY should report a problem on the login page and just not work if a private key has not been provided / configured. App needs the private key of the Local Server to work properly.
+        // OR - if we have the local username & password, should sudo to root and install the public key to allow ssh after key is created.
         // generate an ssh key pair if either doesn't exist
         if (!File.Exists(sshPrivateFile) || !File.Exists(sshPublicFile))
         {
