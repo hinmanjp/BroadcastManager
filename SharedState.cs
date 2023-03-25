@@ -13,6 +13,6 @@
 
         public static object LockObj = new();
 
-        public static BroadcastState? BCastState = null;
+        public static BroadcastState? CurrentState = null;
     }
 }
