@@ -1,4 +1,4 @@
-﻿export function startPlayer(stream_url) {
+﻿export function startPlayer(stream_url, stream_type) {
 
     const player = OvenPlayer.create('player_id', {
         "autoStart": true,
@@ -8,9 +8,7 @@
         sources: [
             {
                 label: 'label_for_webrtc',
-                // Set the type to 'webrtc'
-                type: 'webrtc',
-                // Set the file to WebRTC Signaling URL with OvenMediaEngine 
+                type: stream_type,
                 file: stream_url
             }
         ]

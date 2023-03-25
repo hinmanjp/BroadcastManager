@@ -1,4 +1,4 @@
-﻿@namespace BroadcastManager2
+﻿@namespace BroadcastManager2.Components
 @inject IJSRuntime JS
 
 <style>
@@ -16,6 +16,14 @@
     private string width = "640px";
     private string height = "480px";
 
+    public enum SourceType
+    {
+        webrtc,
+        hls,
+        dash,
+        file,
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -27,7 +35,7 @@
     }
 
 
-    public async Task StartPlayerAsync(string StreamUrl, int Width=0, int Height=0)
+    public async Task StartPlayerAsync(string StreamUrl, SourceType sourceType, int Width=0, int Height=0)
     {
         if(Width > 0)
             width = Width + "px";
@@ -39,9 +47,18 @@
                 StateHasChanged();
             });
 
+        string sType = sourceType.ToString();
+        if (sourceType == SourceType.file)
+        {
+            // oven media does not provide a list of supported file types. We'll just extract the extension and hope it works... :(
+            // extensions listed in documentation are "'mp4' 'webm' or etc"
+            int lastDot = StreamUrl.LastIndexOf('.') + 1;
+            sType = StreamUrl.Substring(lastDot).ToLower();
+        }
+
         var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js");
         if (jsModule is not null)
-            await jsModule.InvokeVoidAsync("startPlayer", StreamUrl);
+            await jsModule.InvokeVoidAsync("startPlayer", StreamUrl, sType);
         await Task.Delay(0);
     }
 
