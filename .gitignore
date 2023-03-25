@@ -369,3 +369,4 @@ FodyWeavers.xsd
 /broadcastManager_ssh_key
 /certs
 /output_resources
+/broadcast.db
