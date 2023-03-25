@@ -47,9 +47,9 @@
 @*  TODO: 
     // Modify enable / disable rtmp push to modify & start / stop stunnel
     // setup stunnel as a service
-    Update DNS isn't working at least some of the time
+    // Update DNS isn't working at least some of the time
     Something is crashing during vm destroy
-    Delete DNS isn't working
+    % Delete DNS isn't working
     startup OvenMediaEngin docker container on boot
     Shared state / button changes not working like it's supposed to...
     Start vpn on boot
@@ -96,11 +96,11 @@
         obs_connected = obs.IsConnected;
         obs.Connected += onObsConnect;
 
-        
+
         ProcessModule? mainModule = Process.GetCurrentProcess().MainModule;
         if (mainModule != null)
             appDir = Path.GetDirectoryName(mainModule.FileName) ?? "";
-        
+
         // load config settings from appsettings.json
         localServerDnsName      = configuration["LocalServerDnsName"] ?? "";
         remoteServerDnsName     = configuration["RemoteServerDnsName"] ?? "";
@@ -173,7 +173,7 @@
         // start a new one if it doesn't exist
 
         // var viInfo = await StartVultrVm();
-        VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40" };
+        VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40", InstanceID = "dummy_id", InstanceLabel = "dummy_label" };
 
         // save the id, ip address, and label of the new instance
         SaveRemoteVmInfo(viInfo);
@@ -181,7 +181,7 @@
         // update DNS records so that the remote server can be found
 
         var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
-        await dns.UpdateDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, viInfo.PublicIPv4, new CancellationToken());
+        var dnsUpdateResult = await dns.UpdateDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, viInfo.PublicIPv4, new CancellationToken());
 
 
         // wait for remote server setup & 1st reboot to complete - poll & sleep
@@ -273,15 +273,14 @@
 
         if (obs.IsConnected) 
         {
+            obs.SetCurrentProgramScene("Black");
+            await Task.Delay( 1500 );  // let the back screen show for a bit before disconnecting
+
             if (obs.GetRecordStatus().IsRecording)
                 obs.StopRecord();
             if (obs.GetStreamStatus().IsActive || obs.GetStreamStatus().IsReconnecting)
                 obs.StopStream();
-
-            obs.SetCurrentProgramScene("Black");
         }
-        // let the back screen show for a bit before disconnecting
-        await Task.Delay(5000);
 
         await DisableRtmpPush();
         // destroy remote server
@@ -289,7 +288,7 @@
 
         // remove dns records
         var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
-        await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
+        var deleteDnsResult = await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
 
         ChangeState(SharedState.BroadcastState.stopped);
 
@@ -654,8 +653,15 @@ WHERE
                 {
                     var delResult = vc.Instance.DeleteInstance(id);
                 }
-                command.CommandText = "DELETE remote_vm;";
-                await command.ExecuteNonQueryAsync();
+                command.CommandText = "DELETE FROM remote_vm;";
+                try
+                {
+                    await command.ExecuteNonQueryAsync();
+                }
+                catch (Exception ex)
+                {
+                    var e1 = ex; 
+                }
             }
         }
 
