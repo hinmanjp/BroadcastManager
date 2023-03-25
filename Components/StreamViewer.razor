@@ -6,6 +6,10 @@
         width: @width;
         height: @height;
     }
+
+    i.op-con.op-warning::before {
+        content: '';
+    }
 </style>
 
 <div id="player_id"></div>
@@ -13,8 +17,8 @@
 @code
 {
     private IJSObjectReference? jsModule;
-    private string width = "640px";
-    private string height = "480px";
+    private string width = "90%";
+    private string height = "auto";
 
     public enum SourceType
     {
