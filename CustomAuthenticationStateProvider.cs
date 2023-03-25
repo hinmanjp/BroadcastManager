@@ -8,7 +8,7 @@
 
     public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
-        private readonly IConfiguration _configuration;
+        //private readonly IConfiguration? _configuration;
 
         public override Task<AuthenticationState> GetAuthenticationStateAsync()
         {
