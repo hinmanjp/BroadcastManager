@@ -56,7 +56,8 @@
             sType = StreamUrl.Substring(lastDot).ToLower();
         }
 
-        var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js");
+        //var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js");
+        var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "/scripts/ovenplayer.js");
         if (jsModule is not null)
             await jsModule.InvokeVoidAsync("startPlayer", StreamUrl, sType);
         await Task.Delay(0);
