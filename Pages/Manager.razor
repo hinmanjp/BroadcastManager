@@ -96,8 +96,10 @@
         obs_connected = obs.IsConnected;
         obs.Connected += onObsConnect;
 
-
-        appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName) ?? "";
+        
+        ProcessModule? mainModule = Process.GetCurrentProcess().MainModule;
+        if (mainModule != null)
+            appDir = Path.GetDirectoryName(mainModule.FileName) ?? "";
         
         // load config settings from appsettings.json
         localServerDnsName      = configuration["LocalServerDnsName"] ?? "";
