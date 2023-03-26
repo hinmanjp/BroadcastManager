@@ -5,6 +5,7 @@
     #player_id {
         width: @width;
         height: @height;
+        margin: auto;
     }
 
     i.op-con.op-warning::before {
@@ -12,9 +13,11 @@
     }
 </style>
 
-@if (showPlayer)
+@if(showPlayer)
 {
+<div @attributes="hidden" >
     <div id="player_id"></div>
+</div>
 }
 
 @code
@@ -22,8 +25,8 @@
     private IJSObjectReference? jsModule;
     private string width = "90%";
     private string height = "auto";
-
-    private bool showPlayer = true;
+    private bool showPlayer = false;
+    private Dictionary<string, object>? hidden { get; set; }
 
     public enum SourceType
     {
@@ -33,24 +36,38 @@
         file,
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        hidden = new Dictionary<string, object>();
+        hidden.Add("hidden", "");
+        showPlayer = false;
+        Refresh();
+        await Task.Delay(0);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "/Components/StreamViewer.razor.js");
         }
         await base.OnAfterRenderAsync(firstRender);
-        await Task.Delay(0);
     }
+
+
 
     public void HidePlayer()
     {
+        if(hidden != null && !hidden.Keys.Contains("hidden"))
+            hidden.Add("hidden", "");
         showPlayer = false;
+
         Refresh();
     }
 
     public async Task StartPlayerAsync(string StreamUrl, SourceType sourceType, int Width=0, int Height=0)
     {
+        if(hidden != null)
+            hidden.Clear();
         showPlayer = true;
         Refresh();
 
@@ -58,11 +75,8 @@
             width = Width + "px";
         if(Height > 0)
             height = Height + "px";
-        if(Width > 0 || Height > 0)
-            _ = InvokeAsync(() =>
-            {
-                StateHasChanged();
-            });
+        if (Width > 0 || Height > 0)
+            Refresh();
 
         string sType = sourceType.ToString();
         if (sourceType == SourceType.file)
@@ -73,6 +87,7 @@
             sType = StreamUrl.Substring(lastDot).ToLower();
         }
 
+        jsModule = await JS.InvokeAsync<IJSObjectReference>( "import", "/Components/StreamViewer.razor.js" );
         //var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "https://cdn.jsdelivr.net/npm/ovenplayer/dist/ovenplayer.js");
         var m1 = await JS.InvokeAsync<IJSObjectReference>("import", "/scripts/ovenplayer.js");
         if (jsModule is not null)
