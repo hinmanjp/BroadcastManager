@@ -19,11 +19,16 @@
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.4" />
     <PackageReference Include="Microsoft.JSInterop" Version="7.0.3" />
+    <PackageReference Include="Websocket.Client" Version="4.6.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\obs-websocket-dotnet\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
-    <ProjectReference Include="..\Vultr.API\Vultr.API.csproj" />
+    <Reference Include="obs-websocket-dotnet">
+      <HintPath>..\obs-websocket-dotnet\obs-websocket-dotnet\bin\Release\netstandard2.0\obs-websocket-dotnet.dll</HintPath>
+    </Reference>
+    <Reference Include="Vultr.API">
+      <HintPath>..\Vultr.API\bin\Release\netstandard2.1\Vultr.API.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
@@ -31,6 +36,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="broadcastManager_ssh_key.pub">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="output_resources\BroadcastAuth.zip">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="output_resources\remote_setup.sh">
