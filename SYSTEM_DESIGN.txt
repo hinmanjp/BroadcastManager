@@ -15,7 +15,12 @@ Questions:
 
 
 local server setup
+- MS .net core runtimes
+  - chown -R www-data:www-data /var/www/broadcastManager
 - getssl certificate management
+    chown :ssl-cert /etc/ssl/willowbrook-ward.org.*
+    chmod 640 /etc/ssl/willowbrook-ward.org.{pfx,key,full.crt}
+
 - OBS
   - configured to capture from HDMI input
   - stream to local nginx
