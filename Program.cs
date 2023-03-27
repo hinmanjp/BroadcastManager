@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
+using MudBlazor.Services;
 using System.Diagnostics;
 using System.Net;
 
@@ -13,6 +14,7 @@ builder.Services.AddServerSideBlazor();
 
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddHttpClient();
+builder.Services.AddMudServices();
 
 var app = builder.Build();
 AppSettings.Config = app.Configuration;
