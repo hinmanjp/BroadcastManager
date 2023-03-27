@@ -52,24 +52,6 @@
     </NotAuthorized>
 </AuthorizeView>
 
-@*  TODO: 
-    // Modify enable / disable rtmp push to modify & start / stop stunnel
-    // setup stunnel as a service
-    // Update DNS isn't working at least some of the time
-    // Something is crashing during vm destroy
-    // Delete DNS isn't working
-    // Timer to destroy VM after xx time - let the remote viewers finish watching before the server goes away...
-    startup OvenMediaEngin docker container on boot
-    Shared state / button changes not working like it's supposed to...
-    Start vpn on boot
-    Fix RTMP auth
-    Show remote player below local player
-    // size the local player according to device size
-
-    Watch CPU / memory usage on remote server
-
-*@
-
 @code {
     private OBSWebsocket obs = new OBSWebsocket();
     private TaskCompletionSource<bool>? tcs = null;

@@ -1,0 +1,29 @@
+stunnel pid directory in /var/run is removed on reboot. 
+  - modify stunnel config to store pid in tmp?
+
+update wireguard client to connect to vpn server
+Fix RTMP auth
+
+Shared state / button changes not working like it's supposed to...
+  - Create as properties & call Refresh() when updated?
+
+Responsive design for page layouts
+
+Show remote player below local player
+size the local player according to device size
+
+setup vnc
+
+// Modify enable / disable rtmp push to modify & start / stop stunnel
+// setup stunnel as a service
+// Update DNS isn't working at least some of the time
+// Something is crashing during vm destroy
+// Delete DNS isn't working
+// Timer to destroy VM after xx time - let the remote viewers finish watching before the server goes away...
+// startup OvenMediaEngin docker container on boot
+
+// Start wireguard client on boot
+  - it just happens. WG is created as a network interface.
+
+// Watch CPU / memory usage on remote server
+    - 0.3% CPU, < 1 GB RAM
