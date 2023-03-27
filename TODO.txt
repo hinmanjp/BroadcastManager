@@ -2,12 +2,16 @@ stunnel pid directory in /var/run is removed on reboot.
   - modify stunnel config to store pid in tmp?
 
 update wireguard client to connect to vpn server
+
+Preserve Login for x hours
+
 Fix RTMP auth
 
 Shared state / button changes not working like it's supposed to...
   - Create as properties & call Refresh() when updated?
 
-Responsive design for page layouts
+
+// Responsive design for page layouts
 
 Show remote player below local player
 size the local player according to device size
