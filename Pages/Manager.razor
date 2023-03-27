@@ -29,7 +29,8 @@
     </Authorized>
     <NotAuthorized>
         @{
-            NavManager.NavigateTo("/");
+            if(NavManager != null)
+                NavManager.NavigateTo("/");
         }
     </NotAuthorized>
 </AuthorizeView>
