@@ -15,4 +15,15 @@
 
         public static BroadcastState? CurrentState = null;
     }
+
+    public class StateChangedArgs : EventArgs
+    {
+        public StateChangedArgs( SharedState.BroadcastState NewState )
+        {
+            SharedState.CurrentState = NewState;
+        }
+
+        public SharedState.BroadcastState BroadcastState { get; private set; }
+
+    }
 }

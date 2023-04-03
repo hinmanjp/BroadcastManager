@@ -2,21 +2,31 @@ stunnel pid directory in /var/run is removed on reboot.
   - modify stunnel config to store pid in tmp?
 
 update wireguard client to connect to vpn server
+setup vnc
 
-Preserve Login for x hours
+// Persist login across page refresh
+Preserve Login for x hours. Discard after x hours.
+  - create object with claims and last access.
+  - Check last access on each auth request. revoke if too old. Update if recent enough.
+  - Check / update last access on button clicks?
 
 Fix RTMP auth
 
-Shared state / button changes not working like it's supposed to...
-  - Create as properties & call Refresh() when updated?
-
+// Shared state / button changes not working like it's supposed to...
 
 // Responsive design for page layouts
 
 Show remote player below local player
 size the local player according to device size
 
-setup vnc
+make video available until midnight
+
+Separate start of broadcast server & start of broadcast stream
+  - Maybe have the stream terminate, and then restart as the broadcast starts?
+  * Maybe stop stream, rm the pre-broadcast stream files, start the live stream, fade from black.
+  - Would need to reset / overwrite the hls fragment ids on reconnect.
+  # Maybe have nginx switch stream locations and reload?
+  - What would happen with the viewing?
 
 // Modify enable / disable rtmp push to modify & start / stop stunnel
 // setup stunnel as a service
@@ -31,3 +41,23 @@ setup vnc
 
 // Watch CPU / memory usage on remote server
     - 0.3% CPU, < 1 GB RAM
+
+check to see if we already have a record of a remote broadcast server running
+  - if we do - check to see if the VULTR API shows it is running
+  - if it is, check to see if we can connect to it
+  - destroy it if we can't connect
+  - start a new one if it doesn't exist
+
+Have OBS Websocket read all available scenes & create buttons for each one.
+  - Only the currently active button would be disabled. 
+  - Start & stop broadcast would still be mutually exclusive - based on state.
+  - Shared state would reflect broadcast state, remote state, and current scene. Maybe connection state between local & remote?
+
+Dev URL parameter that allows using local broadcast controls even if remote vm is not running.
+
+
+Document install & config of tightvnc 
+Start OBS on "Start Broadcast" & stop OBS 2 minutes after Stop Broadcast?
+
+VNC can be started from ssh
+OBS can be started on VNC desktop for configuration purposes

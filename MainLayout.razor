@@ -1,5 +1,10 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.Authorization;
 @using MudBlazor
+
+@inherits LayoutComponentBase
+
+@inject AuthenticationStateProvider authStateProvider
+@inject NavigationManager NavigationManager
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -8,21 +13,38 @@
 <MudLayout>
     <MudAppBar>
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        My Application
+        Broadcast Manager
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen">
         <MyNavMenu/>
     </MudDrawer>
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudContainer MaxWidth="MaxWidth.Small">
             @Body
         </MudContainer>
     </MudMainContent>
 </MudLayout>
 
-@code {
+@code{
     bool _drawerOpen = false;
 
+    protected async override Task OnInitializedAsync()
+    {
+        base.OnInitialized();
+        var authstate = await authStateProvider.GetAuthenticationStateAsync();
+        var user = authstate.User;
+
+        if ( !user.Identity.IsAuthenticated )
+        {
+            //NavigationManager.NavigateTo( $"authentication/login?returnUrl={Uri.EscapeDataString( NavigationManager.Uri )}" );
+            var uri = new Uri(NavigationManager.Uri);
+            if ( uri.PathAndQuery == "/" )
+                NavigationManager.NavigateTo("/");
+            else
+                NavigationManager.NavigateTo( $"/?ReturnUrl={Uri.EscapeDataString( NavigationManager.Uri )}" );
+        }
+        await Task.Delay(0);
+    }
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;

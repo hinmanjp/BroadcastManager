@@ -4,13 +4,13 @@ namespace BroadcastManager2
 {
     public class DnsHelper
     {
-        internal struct DnsSplit
+        public struct DnsSplit
         {
             public string RecordName { get; set; }
             public string ZoneName { get; set; }
         }
 
-        internal static DnsSplit SplitDnsName(string dnsName)
+        public static DnsSplit SplitDnsName(string dnsName)
         {
             var regex = new System.Text.RegularExpressions.Regex(@"(?<record>.*)\.(?<zone>[^.]*\..*$)");
             var match = regex.Match(dnsName);
@@ -20,7 +20,7 @@ namespace BroadcastManager2
             return split;
         }
 
-        internal static string GetLocalIPv4(NetworkInterfaceType _type = NetworkInterfaceType.Unknown)
+        public static string GetLocalIPv4(NetworkInterfaceType _type = NetworkInterfaceType.Unknown)
         {  // Checks your IP adress from the local network connected to a gateway. This to avoid issues with double network cards
             string output = "";  // default output
             foreach (NetworkInterface item in NetworkInterface.GetAllNetworkInterfaces()) // Iterate over each network interface

@@ -1,54 +1,44 @@
-﻿namespace BroadcastManager2
+﻿
+using Newtonsoft.Json;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
+
+namespace BroadcastManager2
 {
-    using System;
-    using System.Security.Claims;
-    using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Components.Authorization;
-
-
     public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
-        //private readonly IConfiguration? _configuration;
-
-        public override Task<AuthenticationState> GetAuthenticationStateAsync()
+        [Inject] ProtectedSessionStorage? pss { get; set; }
+        public CustomAuthenticationStateProvider( ProtectedSessionStorage Pss )
         {
+            pss = Pss;
+        }
 
-            var identity = new ClaimsIdentity();
+        public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+        {
+            ClaimsIdentity? identity = null;
+
+            if ( pss != null )
+            {
+                var result = await pss.GetAsync<string>( "auth", "claims" );
+                if ( result.Success )
+                {
+                    var claims = JsonConvert.DeserializeObject<SimpleClaim[]>( result.Value ?? "{}" );
+                    identity = new ClaimsIdentity( claims, "custom_auth" );
+                }
+            }
+            
+            //if (identity == null)
+            identity ??= new ClaimsIdentity();
             var user = new ClaimsPrincipal(identity);
 
-            return Task.FromResult(new AuthenticationState(user));
+            NotifyAuthenticationStateChanged( Task.FromResult( new AuthenticationState( user ) ) );
+            await Task.Delay( 0 );
+            return new AuthenticationState( user );
         }
 
-        public bool AuthenticateUser(string authCode)
-        {
-            if(IsValid(authCode))
-            { 
-                var identity = new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.Name, authCode),
-                }, "Custom_Auth");
-
-                var user = new ClaimsPrincipal(identity);
-
-                NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
-                return true;
-            }
-            return false;
-        }
-
-        private bool IsValid(string authCode)
-        {
-            string AppMasterPassword = "";
-            if(AppSettings.Config != null)
-                AppMasterPassword = AppSettings.Config["AppMasterPassword"] ?? "";
-
-            if (!string.IsNullOrWhiteSpace(AppMasterPassword) && authCode == AppMasterPassword)
-                return true;
-            else
-            {
-                // check against auth table in db
-            }
-            return false;
-        }
     }
 }

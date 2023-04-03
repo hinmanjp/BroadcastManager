@@ -1,97 +1,63 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Components.Forms;
-@using System.Text.Json;
-@using System.Security.Claims;
-@using BroadcastManager2.Components;
-@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Components.Authorization;
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+@using Newtonsoft.Json;
 
-@inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IJSRuntime JSRuntime
-
-@implements IAsyncDisposable
-
+@inject ProtectedSessionStorage pss
+@inject NavigationManager NavManager
+@inject AuthenticationStateProvider auth
 <PageTitle>Broadcast Manager Login</PageTitle>
 
-<style>
-    div[name=main-body] {
-        width: 90vw;
-        height: 98vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
+<MudTextField @bind-Value="AuthCode" AutoFocus="true" InputType="InputType.Text" Label="Auth Code" Variant="Variant.Outlined" Immediate="true" @onkeydown="@Enter" />
+<MudButton Variant="Variant.Filled" OnClick="OnBtnClick">Login</MudButton>
 
-    .version {
-        position: absolute;
-        bottom: 0px;
-        left: 10px;
-    }
-</style>
-<div class="form-group" name="main-body">
-    <div>
-        <div class="version">Version: @app_version</div>
-        @if (show_version)
-            @app_version
-        <br />
-        <EditForm Model="@wardCode" OnValidSubmit="@OnLoginClick">
-            <InputText @ref=inputTextForFocus @bind-Value="@wardCode.wardCode"></InputText>
-            <button type="submit" @onclick="OnLoginClick">Login</button>
-        </EditForm>
-        </div>
-    </div>
+@code{
+    protected string AuthCode = "";
 
-
-    @code {
-
-    private InputText? inputTextForFocus;
-
-
-    private bool show_version;
-    private string app_version = "1.0.0";
-    private WardCode wardCode = new WardCode();
-
-
-    protected class WardCode
+    protected async Task Enter( KeyboardEventArgs e )
     {
-        public string wardCode { get; set; } = "";
-    }
 
-    protected override async Task OnInitializedAsync()
-    {
-        Navigation.TryGetQueryString<bool>("show-version", out show_version);
-        await Task.Delay(0);
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-            if (inputTextForFocus != null && inputTextForFocus.Element != null)
-                await inputTextForFocus.Element.Value.FocusAsync();
-    }
-
-    private void OnLoginClick()
-    {
-        string code = wardCode.wardCode;
-        wardCode.wardCode = "";
-
-        if (ValidateWardCode(code))
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
         {
-            Navigation.NavigateTo("manager");
+            await OnBtnClick();
+        }
+        //else
+        //    AuthCode += e.Key;
+    }
+
+
+    protected async Task OnBtnClick()
+    {
+        string code = AuthCode.TrimEnd(new []{ '\r','\n' });
+        AuthCode = "";
+        StateHasChanged();
+
+        if ( !IsValid( code ) )
+            return;
+
+        var claims = new Claim[] { new Claim(ClaimTypes.Name, code) };
+        var claimsJson = JsonConvert.SerializeObject( claims );
+        await pss.SetAsync("auth", "claims", claimsJson);
+        var result = await auth.GetAuthenticationStateAsync();
+
+        
+
+        if (result.User.Identity.IsAuthenticated)
+        {
+            NavManager.TryGetQueryString( "ReturnUrl", out string? returnUrl );
+            if (!String.IsNullOrWhiteSpace(returnUrl))
+                NavManager.NavigateTo(Uri.UnescapeDataString(returnUrl));
+            else
+                NavManager.NavigateTo( "/manager" );
         }
     }
 
-
-    private bool ValidateWardCode(string Code)
+    private bool IsValid(string AuthCode)
     {
-        bool is_valid = ((CustomAuthenticationStateProvider)AuthenticationStateProvider).AuthenticateUser(Code);
-        return is_valid;
-    }
+        if (AuthCode == "***REMOVED***" ***REMOVED***)
+            return true;
 
-    public async ValueTask DisposeAsync()
-    {
-        await Task.Delay(0);
+        return false;
     }
 
 }

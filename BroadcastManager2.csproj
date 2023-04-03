@@ -9,6 +9,13 @@
 
   <ItemGroup>
     <Compile Remove="Obs.cs" />
+    <Compile Remove="Pages\Login.cshtml.cs" />
+    <Compile Remove="Pages\Logout.cshtml.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Pages\Login.cshtml" />
+    <Content Remove="Pages\Logout.cshtml" />
   </ItemGroup>
 
   <ItemGroup>

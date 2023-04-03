@@ -1,4 +1,5 @@
-﻿using BroadcastManager2.Components;
+﻿using BroadcastManager2;
+using BroadcastManager2.Components;
 using CliWrap;
 using MudBlazor;
 using Microsoft.AspNetCore.Components;
@@ -11,11 +12,20 @@ using System.Net.Sockets;
 using System.Net;
 using Vultr.Enums;
 using Vultr.Models;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Data;
 
 namespace BroadcastManager2.Pages
 {
     public partial class Manager : ComponentBase
     {
+        [Inject] AuthenticationStateProvider? auth { get; set; }
+        [Inject] IConfiguration? configuration { get; set; }
+        [Inject] IHttpClientFactory? httpClientFactory { get; set; }
+
+        private static event EventHandler<StateChangedArgs> OnStateChanged;
 
         private OBSWebsocket obs = new OBSWebsocket();
         private TaskCompletionSource<bool>? tcs = null;
@@ -24,6 +34,7 @@ namespace BroadcastManager2.Pages
         private bool showRemote = false;
         private DnsHelper.DnsSplit remoteDnsSplit;
         private SetupTimer? sTimer;
+        private ClaimsPrincipal user;
 
         //private string adminPW = "";
         private string appDir = "";
@@ -33,7 +44,6 @@ namespace BroadcastManager2.Pages
         private string obsKey = "";
         private string obsUrl = "";
         private int remoteRtmpPort = 1936;
-        private string rtspServerDownloadUrl = "";
         private bool showLocalPlayer = true;
         private string sshPrivateFile = "";
         private string sshPublicFile = "";
@@ -47,14 +57,46 @@ namespace BroadcastManager2.Pages
         private string width = "90%";
         private string height = "auto";
 
-        [Inject] NavigationManager? NavManager { get; set; }
-        [Inject] IConfiguration? configuration { get; set; }
-        [Inject] IHttpClientFactory? httpClientFactory { get; set; }
+        public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height )
+        {
+            this.auth = auth;
+            this.configuration = configuration;
+            this.httpClientFactory = httpClientFactory;
+            this.obs = obs;
+            this.tcs = tcs;
+            this.localViewer = localViewer;
+            this.showRemote = showRemote;
+            this.remoteDnsSplit = remoteDnsSplit;
+            this.sTimer = sTimer;
+            this.user = user;
+            this.appDir = appDir;
+            this.localServerDnsName = localServerDnsName;
+            this.remoteServerDnsName = remoteServerDnsName;
+            this.obsKey = obsKey;
+            this.obsUrl = obsUrl;
+            this.remoteRtmpPort = remoteRtmpPort;
+            this.showLocalPlayer = showLocalPlayer;
+            this.sshPrivateFile = sshPrivateFile;
+            this.sshPublicFile = sshPublicFile;
+            this.vultrKey = vultrKey;
+            this.vultrUrl = vultrUrl;
+            this.waitForObsConnection = waitForObsConnection;
+            this.obs_connected = obs_connected;
+            this.alert_msg = alert_msg;
+            this.width = width;
+            this.height = height;
+        }
 
+        public Manager() { }
 
         protected override async Task OnInitializedAsync()
         {
-
+            OnStateChanged += ( o, e ) =>
+            {
+                // Since we're not necessarily on the thread that has proper access to the renderer context
+                // we need to use the InvokeAsync() method, which takes care of running our code on the right thread.
+                this.InvokeAsync( () => { this.StateHasChanged(); } );
+            };
 
             sTimer = new SetupTimer();
 
@@ -70,17 +112,19 @@ namespace BroadcastManager2.Pages
             if ( mainModule != null )
                 appDir = Path.GetDirectoryName( mainModule.FileName ) ?? "";
 
-            // load config settings from appsettings.json
-            localServerDnsName = configuration["LocalServerDnsName"] ?? "";
-            remoteServerDnsName = configuration["RemoteServerDnsName"] ?? "";
-            obsKey = configuration["ObsApiKey"] ?? "";
-            obsUrl = configuration["ObsUrl"] ?? "ws://127.0.0.1:4455";
-            rtspServerDownloadUrl = configuration["RtspServerDownloadUrl"] ?? "";
-            sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
-            sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
-            vultrKey = configuration["VultrApiKey"] ?? "";
-            waitForObsConnection = Convert.ToInt32( configuration["WaitSecsForObsConnection"] ?? "10" );
-
+            if(configuration != null)
+            { 
+                // load config settings from appsettings.json
+                localServerDnsName = configuration["LocalServerDnsName"] ?? "";
+                remoteServerDnsName = configuration["RemoteServerDnsName"] ?? "";
+                obsKey = configuration["ObsApiKey"] ?? "";
+                obsUrl = configuration["ObsUrl"] ?? "ws://127.0.0.1:4455";
+                //rtspServerDownloadUrl = configuration["RtspServerDownloadUrl"] ?? "";
+                sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
+                sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
+                vultrKey = configuration["VultrApiKey"] ?? "";
+                waitForObsConnection = Convert.ToInt32( configuration["WaitSecsForObsConnection"] ?? "10" );
+            }
             remoteDnsSplit = DnsHelper.SplitDnsName( remoteServerDnsName );
 
             if ( !Path.IsPathRooted( sshPrivateFile ) )
@@ -90,10 +134,15 @@ namespace BroadcastManager2.Pages
                 sshPublicFile = Path.Combine( appDir, sshPublicFile );
 
             await Task.Delay( 0 );
+            base.OnInitializedAsync();
         }
 
         protected override async Task OnAfterRenderAsync( bool firstRender )
         {
+            await base.OnAfterRenderAsync( firstRender );
+            var authstate = await auth.GetAuthenticationStateAsync();
+            Refresh();
+            user = authstate.User;
             if ( firstRender )
             {
                 if ( sTimer != null )
@@ -106,7 +155,6 @@ namespace BroadcastManager2.Pages
                     Refresh();
                 }
             }
-            await base.OnAfterRenderAsync( firstRender );
         }
 
         private void onObsConnect( object? sender, EventArgs e )
@@ -127,6 +175,7 @@ namespace BroadcastManager2.Pages
                 sTimer.ShowTimer();
                 sTimer.StartTimer();
             }
+/*
             // REALLY should report a problem on the login page and just not work if a private key has not been provided / configured. App needs the private key of the Local Server to work properly.
             // OR - if we have the local username & password, should sudo to root and install the public key to allow ssh after key is created.
             // generate an ssh key pair if either doesn't exist
@@ -136,13 +185,6 @@ namespace BroadcastManager2.Pages
     .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
     .WithWorkingDirectory(appDir);
             }
-
-
-            // check to see if we already have a record of a remote broadcast server running
-            // if we do - check to see if the VULTR API shows it is running
-            // if it is, check to see if we can connect to it
-            // destroy it if we can't connect
-            // start a new one if it doesn't exist
 
             var viInfo = await StartVultrVm();
             //VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40", InstanceID = "dummy_id", InstanceLabel = "dummy_label" };
@@ -205,7 +247,7 @@ namespace BroadcastManager2.Pages
             //    await remoteViewer.StartPlayerAsync($"https://{remoteServerDnsName}'/stream/hls/sac1.m3u8'");
             showRemote = true;
             Refresh();
-
+*/
 
             ChangeState( SharedState.BroadcastState.running );
 
@@ -224,7 +266,7 @@ namespace BroadcastManager2.Pages
         {
             if ( !ChangeState( SharedState.BroadcastState.paused ) )
             { return; }
-
+            /*
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
@@ -232,7 +274,8 @@ namespace BroadcastManager2.Pages
             {
                 obs.SetCurrentProgramScene( "Paused" );
             }
-
+            */
+            Refresh();
             await Task.Delay( 0 );
         }
 
@@ -240,7 +283,7 @@ namespace BroadcastManager2.Pages
         {
             if ( !ChangeState( SharedState.BroadcastState.running ) )
             { return; }
-
+            /*
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
@@ -248,6 +291,7 @@ namespace BroadcastManager2.Pages
             {
                 obs.SetCurrentProgramScene( "Camera" );
             }
+            */
             Refresh();
             await Task.Delay( 0 );
         }
@@ -256,7 +300,7 @@ namespace BroadcastManager2.Pages
         {
             if ( !ChangeState( SharedState.BroadcastState.stopping ) )
             { return; }
-
+            /*
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
@@ -294,7 +338,7 @@ namespace BroadcastManager2.Pages
             // remove dns records
             var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
             var deleteDnsResult = await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
-
+            */
             ChangeState( SharedState.BroadcastState.stopped );
 
             alert_msg = string.Empty;
@@ -312,7 +356,7 @@ namespace BroadcastManager2.Pages
             lock ( SharedState.LockObj )// don't want to hold a lock for the whole startup process - just make state hasn't changed by someone else already, and then continue or exit.
             {
                 if ( CheckState( NewState ) )
-                    SharedState.CurrentState = NewState;
+                    OnStateChanged.Invoke( null, new StateChangedArgs( NewState ) );
                 else
                     return false;
             }

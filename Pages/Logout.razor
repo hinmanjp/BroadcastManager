@@ -1,0 +1,15 @@
+﻿@page "/logout"
+
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+
+<p>You have been logged out</p>
+
+@inject ProtectedSessionStorage pss
+@inject AuthenticationStateProvider auth
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await pss.DeleteAsync("claims");
+        await auth.GetAuthenticationStateAsync();
+    }
+}

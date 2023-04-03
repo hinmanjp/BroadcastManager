@@ -1,0 +1,30 @@
+﻿@page "/AuthOnly"
+@using Microsoft.AspNetCore.Components.Authorization;
+@using BroadcastManager2
+
+@inject AuthenticationStateProvider authStateProvider
+
+@*@attribute [Authorize]*@
+
+<AuthorizeView>
+    <Authorized>
+        This content is displayed only if the user is Authorized
+        <p>Hello, @(user?.Identity?.Name)!</p>
+    </Authorized>
+    <NotAuthorized>
+        This content is displayed if the user is Not Authorized
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    private ClaimsPrincipal? user;
+
+    protected async override Task OnInitializedAsync()
+    {
+        base.OnInitialized();
+        var authstate = await authStateProvider.GetAuthenticationStateAsync();
+        user = authstate.User;
+        await Task.Delay(0);
+    }
+}

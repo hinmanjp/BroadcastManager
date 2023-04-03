@@ -1,41 +1,40 @@
-﻿@*@inherits Manager*@
+﻿@using BroadcastManager2
+@using BroadcastManager2.Components
+
 @page "/manager"
 
-@*@attribute [Authorize] *@
+@attribute [Authorize]
+<style>
+    .btnSpace {
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+    }
+</style>
+
+<h3>Broadcast state: @SharedState.CurrentState.ToString()</h3>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnBtnStart" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.stopped)">Start</MudButton></div>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnPause" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.running )">Pause</MudButton></div>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnResume" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.paused )">Resume</MudButton></div>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnStop" disabled="@(SharedState.CurrentState == SharedState.BroadcastState.stopped || SharedState.CurrentState == SharedState.BroadcastState.stopping || SharedState.CurrentState == SharedState.BroadcastState.starting  )">Stop</MudButton></div>
+<div><SetupTimer @ref="sTimer" /></div>
+
+@if (!String.IsNullOrWhiteSpace(alert_msg))
+{
+    <p>@alert_msg</p>
+}
+
+<StreamViewer @ref="localViewer"/>
+@if(@showRemote == true)
+{
+    <br />
+}
 
 
-<AuthorizeView>
-    <Authorized>
 
-        <p>Hello, @context.User?.Identity?.Name!</p>
-        <p>Broadcast state: @SharedState.CurrentState.ToString()</p>
-        <p><button @onclick="OnBtnStart" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.stopped)" name="Start">Start</button></p>
-        <p><button @onclick="OnPause" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.running )" name="Pause">Pause</button></p>
-        <p><button @onclick="OnResume" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.paused )" name="Resume">Resume</button></p>
-        <p><button @onclick="OnStop" disabled="@(SharedState.CurrentState == SharedState.BroadcastState.stopped || SharedState.CurrentState == SharedState.BroadcastState.stopping || SharedState.CurrentState == SharedState.BroadcastState.starting  )" name="Stop">Stop</button></p>
-        <SetupTimer @ref="sTimer" />
-        @if (!String.IsNullOrWhiteSpace(alert_msg))
-        {
-            <p>@alert_msg</p>
-        }
-
-        <StreamViewer @ref="localViewer"/>
-        @if(@showRemote == true)
-        {
-            <br />
-        }
-
-
-    </Authorized>
-    <NotAuthorized>
-        @{
-            if(NavManager != null)
-                NavManager.NavigateTo("/");
-        }
-    </NotAuthorized>
-</AuthorizeView>
 
 @code {
 
+    
+    
 }
 

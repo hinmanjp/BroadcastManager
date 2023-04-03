@@ -1,12 +1,23 @@
 ﻿@using MudBlazor;
 
+@namespace BroadcastManager2
+
 <MudNavMenu>
-    <MudNavLink Href="/" Match="NavLinkMatch.All">Dashboard</MudNavLink>
-    <MudNavLink Href="/servers" Match="NavLinkMatch.Prefix">Servers</MudNavLink>
-    <MudNavGroup Title="Settings" Expanded="true">
-        <MudNavLink Href="/users"  Match="NavLinkMatch.Prefix">Users</MudNavLink>
-        <MudNavLink Href="/security"  Match="NavLinkMatch.Prefix">Security</MudNavLink>
-    </MudNavGroup>
+    <MudNavLink Href="/" Match="NavLinkMatch.All">Login</MudNavLink>
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="/manager" Match="NavLinkMatch.Prefix">Broadcast Manager</MudNavLink>
+            <MudNavLink Href="/fullscreen" Match="NavLinkMatch.Prefix">Users</MudNavLink>
+            <MudNavGroup Title="Settings" Expanded="true">
+                <MudNavLink Href="/users" Match="NavLinkMatch.Prefix">Users</MudNavLink>
+                <MudNavLink Href="/security" Match="NavLinkMatch.Prefix">Security</MudNavLink>
+            </MudNavGroup>
+            <MudNavLink Href="/logout" Match="NavLinkMatch.Prefix">Logout</MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+        </NotAuthorized>
+    </AuthorizeView>
+
     <MudNavLink Href="/about"  Match="NavLinkMatch.Prefix">About</MudNavLink>
 </MudNavMenu>
 
