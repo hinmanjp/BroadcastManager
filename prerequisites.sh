@@ -291,12 +291,12 @@ usermod -a -G ssl-cert web-app
 
 
 # Configure VNC server for remote configuration
-apt install xfce4 xfce4-goodies
-apt install tightvncserver expect
+apt install -y xfce4 xfce4-goodies
+apt install -y tightvncserver expect
 
 
-sudo -u ***REMOVED*** PROG=$(/usr/bin/which vncpasswd) NEWPASS="Sacramen" /usr/bin/expect <<EOF
-spawn $PROG
+PROG=$(/usr/bin/which vncpasswd) NEWPASS="Sacramen"; sudo -u ***REMOVED*** --preserve-env=PROG --preserve-env=NEWPASS /usr/bin/expect <<EOF
+spawn "$PROG"
 expect "Password:"
 send "$NEWPASS\r"
 expect "Verify:"
@@ -308,18 +308,16 @@ exit
 EOF
 
 sudo -u ***REMOVED*** vncserver
-vncserver -kill :1
-mv ~/.vnc/xstartup ~/.vnc/xstartup.bak
+sudo -u ***REMOVED*** vncserver -kill :1
+sudo -u ***REMOVED*** mv ~/.vnc/xstartup ~/.vnc/xstartup.bak
 
-sudo -u ***REMOVED*** cat << EOF > /home/***REMOVED***/.vnc/xstartup
+sudo -u ***REMOVED*** -i cat << EOF > /home/***REMOVED***/.vnc/xstartup
 #!/bin/bash
 xrdb $HOME/.Xresources
 startxfce4 &
 EOF
 
-chmod +x ~/.vnc/xstartup
-
-
+chmod +x /home/***REMOVED***/.vnc/xstartup
 
 
 # Configure VPN client for remote configuration
