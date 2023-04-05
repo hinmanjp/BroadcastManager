@@ -140,7 +140,7 @@ namespace BroadcastManager2.Pages
                 sshPublicFile = Path.Combine( appDir, sshPublicFile );
 
             await Task.Delay( 0 );
-            base.OnInitializedAsync();
+            await base.OnInitializedAsync();
         }
 
         protected override async Task OnAfterRenderAsync( bool firstRender )
