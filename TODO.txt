@@ -10,6 +10,20 @@ Preserve Login for x hours. Discard after x hours.
   - Check last access on each auth request. revoke if too old. Update if recent enough.
   - Check / update last access on button clicks?
 
+Separate "Start Broadcast Server" from "Start Broadcast"
+Separate start of broadcast server & start of broadcast stream
+  - Maybe have the stream terminate, and then restart as the broadcast starts?
+  * Maybe stop stream, rm the pre-broadcast stream files, start the live stream, fade from black.
+  - Would need to reset / overwrite the hls fragment ids on reconnect.
+  # Maybe have nginx switch stream locations and reload?
+  - What would happen with the viewing?
+
+Start OBS on "Start Broadcast" & stop OBS 5-10 seconds after Stop Broadcast?
+
+Real user login
+
+User management
+
 Fix RTMP auth
 
 // Shared state / button changes not working like it's supposed to...
@@ -21,12 +35,6 @@ size the local player according to device size
 
 make video available until midnight
 
-Separate start of broadcast server & start of broadcast stream
-  - Maybe have the stream terminate, and then restart as the broadcast starts?
-  * Maybe stop stream, rm the pre-broadcast stream files, start the live stream, fade from black.
-  - Would need to reset / overwrite the hls fragment ids on reconnect.
-  # Maybe have nginx switch stream locations and reload?
-  - What would happen with the viewing?
 
 // Modify enable / disable rtmp push to modify & start / stop stunnel
 // setup stunnel as a service
@@ -56,8 +64,7 @@ Have OBS Websocket read all available scenes & create buttons for each one.
 Dev URL parameter that allows using local broadcast controls even if remote vm is not running.
 
 
-Document install & config of tightvnc 
-Start OBS on "Start Broadcast" & stop OBS 2 minutes after Stop Broadcast?
+//Document install & config of tightvnc 
 
-VNC can be started from ssh
-OBS can be started on VNC desktop for configuration purposes
+//VNC can be started from ssh
+//OBS can be started on VNC desktop for configuration purposes
