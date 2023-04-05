@@ -16,6 +16,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Data;
+using Vultr.API;
 
 namespace BroadcastManager2.Pages
 {
@@ -37,7 +38,9 @@ namespace BroadcastManager2.Pages
         private ClaimsPrincipal user;
 
         //private string adminPW = "";
+        private string vultrVmLabel = "";
         private string appDir = "";
+        private string cloudflareTokenKey = "";
         private string localServerDnsName = "";
         private string remoteServerDnsName = "";
 
@@ -56,6 +59,7 @@ namespace BroadcastManager2.Pages
 
         private string width = "90%";
         private string height = "auto";
+        private bool showWaitingMsgOnStart;
 
         public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height )
         {
@@ -113,8 +117,9 @@ namespace BroadcastManager2.Pages
                 appDir = Path.GetDirectoryName( mainModule.FileName ) ?? "";
 
             if(configuration != null)
-            { 
+            {
                 // load config settings from appsettings.json
+                cloudflareTokenKey = configuration["CloudFlareTokenKey"] ?? "";
                 localServerDnsName = configuration["LocalServerDnsName"] ?? "";
                 remoteServerDnsName = configuration["RemoteServerDnsName"] ?? "";
                 obsKey = configuration["ObsApiKey"] ?? "";
@@ -123,6 +128,7 @@ namespace BroadcastManager2.Pages
                 sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
                 sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
                 vultrKey = configuration["VultrApiKey"] ?? "";
+                vultrVmLabel = configuration["VultrVmLabel"] ?? "";
                 waitForObsConnection = Convert.ToInt32( configuration["WaitSecsForObsConnection"] ?? "10" );
             }
             remoteDnsSplit = DnsHelper.SplitDnsName( remoteServerDnsName );
@@ -166,35 +172,45 @@ namespace BroadcastManager2.Pages
 
         private async Task OnBtnStart()
         {
-            if ( !ChangeState( SharedState.BroadcastState.starting ) )
-            {
-                return;
-            }
-            if ( sTimer != null )
-            {
-                sTimer.ShowTimer();
-                sTimer.StartTimer();
-            }
-/*
             // REALLY should report a problem on the login page and just not work if a private key has not been provided / configured. App needs the private key of the Local Server to work properly.
             // OR - if we have the local username & password, should sudo to root and install the public key to allow ssh after key is created.
             // generate an ssh key pair if either doesn't exist
             if ( !File.Exists( sshPrivateFile ) || !File.Exists( sshPublicFile ) )
             {
-                var sshResult = Cli.Wrap("$(/usr/bin/which ssh-keygen)")
-    .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
-    .WithWorkingDirectory(appDir);
+                //var sshResult = Cli.Wrap("$(/usr/bin/which ssh-keygen)")
+                //  .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
+                //  .WithWorkingDirectory(appDir);
             }
 
-            var viInfo = await StartVultrVm();
+            if ( !ChangeState( SharedState.BroadcastState.starting ) )
+            {
+                return;
+            }
+
+            if ( sTimer != null )
+            {
+                sTimer.ShowTimer();
+                sTimer.StartTimer();
+            }
+
+            var remoteVM = ExistingRemote.CurrentInstance;
+            if (string.IsNullOrWhiteSpace(remoteVM.id))
+            {
+                alert_msg = "Starting a new broadcast server instance";
+                Refresh();
+                remoteVM = await StartVultrVm();
+            }
             //VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40", InstanceID = "dummy_id", InstanceLabel = "dummy_label" };
 
+            
+
             // save the id, ip address, and label of the new instance
-            SaveRemoteVmInfo( viInfo );
+            SaveRemoteVmInfo( remoteVM );
 
             // update DNS records so that the remote server can be found
-            var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
-            var dnsUpdateResult = await dns.UpdateDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, viInfo.PublicIPv4, new CancellationToken());
+            var dns = new UpdateCloudflareDNS(cloudflareTokenKey);
+
+            var dnsUpdateResult = await dns.UpdateDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, remoteVM.main_ip, new CancellationToken());
 
 
             // wait for remote server setup & 1st reboot to complete - poll & sleep
@@ -204,18 +220,18 @@ namespace BroadcastManager2.Pages
 
             do
             {
-                await WaitForSshRunning( viInfo.PublicIPv4 );
+                await WaitForSshRunning( remoteVM.main_ip );
                 readyCount += 1;
             }
             while ( readyCount < 5 );
 
             alert_msg = "Finishing configuration of remote server";
             Refresh();
-            SetupRemoteBroadcastServer( viInfo.PublicIPv4 );
+            SetupRemoteBroadcastServer( remoteVM.main_ip );
 
-            if ( !(await WaitForHttpRunning( viInfo.PublicIPv4 )) )
+            if ( !(await WaitForHttpRunning( remoteVM.main_ip )) )
             {
-                alert_msg = "Remote server is NOT online!";
+                alert_msg = "Remote server is not yet online!";
                 Refresh();
             }
 
@@ -223,10 +239,11 @@ namespace BroadcastManager2.Pages
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
-            //    https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8
-
-            // make sure obs scene selected is camera? Or...
-            obs.SetCurrentProgramScene( "Camera" );
+            // show a pre start screen, or the live camera, depending on ward level preference
+            if ( showWaitingMsgOnStart )
+                obs.SetCurrentProgramScene( "WaitForStart" );
+            else
+                obs.SetCurrentProgramScene( "Camera" );
 
             // make sure obs is streaming
             if ( !(obs.GetStreamStatus().IsActive || obs.GetStreamStatus().IsReconnecting) )
@@ -236,18 +253,18 @@ namespace BroadcastManager2.Pages
             await StartLocalPlayer();
 
             // nginx on local server won't push to new remote server until it is restarted.
-            await EnableRtmpPush( viInfo.PublicIPv4 );
+            await EnableRtmpPush( remoteVM.main_ip );
 
 
             alert_msg = "Waiting for the remote stream to start playing";
             Refresh();
 
-            await WaitForHlsStartAsync( viInfo.PublicIPv4 );
+            await WaitForHlsStartAsync( remoteVM.main_ip );
             //if (remoteViewer != null)
             //    await remoteViewer.StartPlayerAsync($"https://{remoteServerDnsName}'/stream/hls/sac1.m3u8'");
             showRemote = true;
             Refresh();
-*/
+
 
             ChangeState( SharedState.BroadcastState.running );
 
@@ -300,14 +317,15 @@ namespace BroadcastManager2.Pages
         {
             if ( !ChangeState( SharedState.BroadcastState.stopping ) )
             { return; }
-            /*
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
             if ( obs.IsConnected )
             {
+                obs.SetCurrentProgramScene( "Finished" );
+                await Task.Delay( 5000 );  // let the back screen show for a bit before disconnecting
                 obs.SetCurrentProgramScene( "Black" );
-                await Task.Delay( 1500 );  // let the back screen show for a bit before disconnecting
+                await Task.Delay( 1500 );
 
                 if ( obs.GetRecordStatus().IsRecording )
                     obs.StopRecord();
@@ -320,25 +338,8 @@ namespace BroadcastManager2.Pages
 
             showRemote = false;
 
-            await DisableRtmpPush();
-            alert_msg = "Waiting for remote viewers to finish before removing the remote server...";
-            // should show a countdown timer here...
-            Refresh();
+            await DisableStunnel();
 
-            // destroy remote server
-            // but not right away. Remote viewers need to finish watching...
-            // should really make all of this cancelable if somebody wants to start again before the vm is destroyed.
-
-            int.TryParse( configuration["ShutdownDelaySeconds"], out int delaySeconds );
-            // 5 minute default delay if nothing is set;
-            if ( delaySeconds == 0 ) delaySeconds = 300;
-            await Task.Delay( delaySeconds * 1000 );
-            await StopVultrVm();
-
-            // remove dns records
-            var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
-            var deleteDnsResult = await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
-            */
             ChangeState( SharedState.BroadcastState.stopped );
 
             alert_msg = string.Empty;
@@ -346,6 +347,18 @@ namespace BroadcastManager2.Pages
 
             await Task.Delay( 0 );
         }
+
+        private async Task OnShutdownRemote()
+        {
+            await StopVultrVm();
+
+            // remove dns records
+            var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
+            var deleteDnsResult = await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
+
+            await Task.Delay( 0 );
+        }
+
 
         private bool ChangeState( SharedState.BroadcastState NewState )
         {
@@ -405,7 +418,7 @@ namespace BroadcastManager2.Pages
             }
         }
 
-        private async Task DisableRtmpPush()
+        private async Task DisableStunnel()
         {
 
             PrivateKeyFile keyFile = new PrivateKeyFile(sshPrivateFile);
@@ -447,7 +460,6 @@ namespace BroadcastManager2.Pages
             await Task.Delay( 0 );
         }
 
-
         private void Refresh()
         {
             _ = InvokeAsync( () =>
@@ -457,7 +469,7 @@ namespace BroadcastManager2.Pages
         }
 
 
-        private void SaveRemoteVmInfo( VultrInstanceInfo viInfo )
+        private void SaveRemoteVmInfo( Instance instance )
         {
 
             using ( var connection = new SqliteConnection( "Data Source=broadcast.db" ) )
@@ -474,16 +486,17 @@ WHERE
 
                 if ( command.ExecuteScalar() is null )
                 {
-                    command.CommandText = "CREATE TABLE remote_vm (vm_id TEXT, vm_ip TEXT, vm_label TEXT);";
+                    command.CommandText = "CREATE TABLE remote_vm (vm_id TEXT PRIMARY KEY, vm_ip TEXT, vm_label TEXT);";
                     command.ExecuteNonQuery();
                 }
 
                 command.CommandText =
-                    @"INSERT INTO remote_vm (vm_id, vm_ip, vm_label) SELECT $id, $ip, $label;";
+@"INSERT INTO remote_vm (vm_id, vm_ip, vm_label) SELECT $id, $ip, $label
+    ON CONFLICT(vm_id) DO UPDATE SET vm_ip = $ip;";
 
-                command.Parameters.AddWithValue( "$id", viInfo.InstanceID );
-                command.Parameters.AddWithValue( "$ip", viInfo.PublicIPv4 );
-                command.Parameters.AddWithValue( "$label", viInfo.InstanceLabel );
+                command.Parameters.AddWithValue( "$id", instance.id );
+                command.Parameters.AddWithValue( "$ip", instance.main_ip );
+                command.Parameters.AddWithValue( "$label", instance.label);
                 command.ExecuteNonQuery();
             }
         }
@@ -565,7 +578,7 @@ WHERE
                                                  , sourceType: StreamViewer.SourceType.webrtc );
         }
 
-        private async Task<VultrInstanceInfo> StartVultrVm()
+        private async Task<Instance> StartVultrVm()
         {
             // need to read the public key data from the public key file.
             string sshPublicKey = File.ReadAllText(sshPublicFile);
@@ -597,9 +610,8 @@ WHERE
 
             var script = vc.StartupScript.GetStartupScripts().StartupScripts.Where(s => s.name == "test").FirstOrDefault(new Startup_Scripts());
 
-            var instanceInfo = vc.Instance.CreateInstance(Label: "Broadcaster", Hostname: "broadcaster", RegionID: regionID, PlanID: plan1.id, SourceID: os.id.ToString(), Source: Vultr.Clients.InstanceClient.SourceType.os, ScriptID: script.id, SshKeyIDs: new[] { sshKey.id });
+            var instanceInfo = vc.Instance.CreateInstance(Label: vultrVmLabel, Hostname: vultrVmLabel, RegionID: regionID, PlanID: plan1.id, SourceID: os.id.ToString(), Source: Vultr.Clients.InstanceClient.SourceType.os, ScriptID: script.id, SshKeyIDs: new[] { sshKey.id });
 
-            VultrInstanceInfo viInfo = new VultrInstanceInfo() { InstanceID = instanceInfo.Instances[0].id };
             // give the provider a few seconds to allocate an IP address for the remote server
             int loopCount = 0;
             do
@@ -608,23 +620,17 @@ WHERE
                 Refresh();
                 loopCount += 1;
                 await Task.Delay( 2000 );
-                var instanceDetail = vc.Instance.GetInstance(viInfo.InstanceID);
-                viInfo.PublicIPv4 = instanceDetail.Instances[0].main_ip;
-                viInfo.InstanceLabel = instanceDetail.Instances[0].label;
+                var instanceDetail = vc.Instance.GetInstance(instanceInfo.Instances[0].id);
             }
-            while ( viInfo.PublicIPv4 == "0.0.0.0" || loopCount >= 90 );
+            while ( instanceInfo.Instances[0].main_ip == "0.0.0.0" || loopCount >= 90 );
 
-            if ( viInfo.PublicIPv4 is not null && viInfo.PublicIPv4 != "0.0.0.0" )
+            if ( instanceInfo.Instances[0].main_ip is not null && instanceInfo.Instances[0].main_ip != "0.0.0.0" )
                 alert_msg = "Remote server IP address has been allocated.";
             else
                 alert_msg = "Failed to get an IP address for the remote server before timing out.";
             Refresh();
 
-            //var instanceList = vc.Instance.ListInstances();
-            //var bcastInstance = instanceList.Instances.Where(o => o.label == "Broadcaster").FirstOrDefault(new Instance());
-
-            //var instanceDelResult = vc.Instance.DeleteInstance(bcastInstance.id);
-            return viInfo;
+            return instanceInfo.Instances[0];
         }
 
         private async Task StopVultrVm()
@@ -668,15 +674,6 @@ WHERE
             }
 
             await Task.Delay( 0 );
-        }
-
-        private struct VultrInstanceInfo
-        {
-            public string InstanceID { get; set; }
-
-            [DefaultValue( "0.0.0.0" )]
-            public string PublicIPv4 { get; set; }
-            public string InstanceLabel { get; set; }
         }
 
         private async Task WaitForHlsStartAsync( string serverIP )

@@ -2,10 +2,14 @@
 {
     public class AppSettings 
     {
-        public static IConfiguration? Config { get; set; }
+        private static IConfiguration? _config;
+        public static IConfiguration Config {
+            get { return _config ?? new ConfigurationBuilder().Build(); }
+            internal set { _config = value; }
+        }
         public AppSettings(IConfiguration configuration) 
         {
-            Config = configuration;
+            _config = configuration;
         }
     }
 }

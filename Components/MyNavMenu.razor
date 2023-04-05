@@ -4,6 +4,7 @@
 
 <MudNavMenu>
     <MudNavLink Href="/" Match="NavLinkMatch.All">Login</MudNavLink>
+    <MudNavLink Href="https://watch.willowbrook-ward.org/" Target="remoteview" Match="NavLinkMatch.Prefix">Member Page</MudNavLink>
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="/manager" Match="NavLinkMatch.Prefix">Broadcast Manager</MudNavLink>
@@ -13,6 +14,7 @@
                 <MudNavLink Href="/security" Match="NavLinkMatch.Prefix">Security</MudNavLink>
             </MudNavGroup>
             <MudNavLink Href="/logout" Match="NavLinkMatch.Prefix">Logout</MudNavLink>
+            <a href="#" onclick="window.open('http://www.google.com', 'mywin'); return false;">Open link in specific window</a>
         </Authorized>
         <NotAuthorized>
         </NotAuthorized>
