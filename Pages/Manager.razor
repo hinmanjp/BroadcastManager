@@ -18,7 +18,7 @@
 }
 <div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnPause" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.running )">Pause</MudButton></div>
 <div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnResume" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.paused )">Resume</MudButton></div>
-<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnStop" disabled="@(SharedState.CurrentState != SharedState.BroadcastState.stopped && SharedState.CurrentState != SharedState.BroadcastState.starting && SharedState.CurrentState != SharedState.BroadcastState.stopping )">Stop</MudButton></div>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnStop" disabled="@(SharedState.CurrentState == SharedState.BroadcastState.stopped || SharedState.CurrentState == SharedState.BroadcastState.starting || SharedState.CurrentState == SharedState.BroadcastState.stopping )">Stop</MudButton></div>
 <div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnShutdownRemote" disabled="@( string.IsNullOrWhiteSpace( ExistingRemote.CurrentInstance.id ) )">Shutdown Remote Server</MudButton></div>
 <div><SetupTimer @ref="sTimer" /></div>
 
