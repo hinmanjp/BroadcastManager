@@ -35,7 +35,8 @@ END USER Authentication to watch the broadcast
   - Capture number watching
   - Send email when users logged in?
   - HOW to make sure this is captured & reported w/o getting lost?
-
+  
+Show current ward / date auth code on management page
 
 // Persist login across page refresh
 
