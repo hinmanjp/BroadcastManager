@@ -28,6 +28,13 @@ Configuration page
   - reload global settings on user login
   - load ward settings on user login
 
+END USER Authentication to watch the broadcast
+  - GUI for creating auth codes tied to unit & dates
+  - have stream name = the unit/date auth code
+  - Capture who is watching
+  - Capture number watching
+  - Send email when users logged in?
+  - HOW to make sure this is captured & reported w/o getting lost?
 
 
 // Persist login across page refresh
@@ -70,7 +77,7 @@ size the local player according to device size
 // Watch CPU / memory usage on remote server
     - 0.3% CPU, < 1 GB RAM
 
-check to see if we already have a record of a remote broadcast server running
+// check to see if we already have a record of a remote broadcast server running
   - if we do - check to see if the VULTR API shows it is running
   - if it is, check to see if we can connect to it
   - destroy it if we can't connect
