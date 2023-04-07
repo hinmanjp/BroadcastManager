@@ -1,8 +1,12 @@
-stunnel pid directory in /var/run is removed on reboot. 
-  - modify stunnel config to store pid in tmp?
+//stunnel pid directory in /var/run is removed on reboot. 
+//  - modify stunnel config to store pid in tmp?
 
-update wireguard client to connect to vpn server
-setup vnc
+//update wireguard client to connect to vpn server
+//setup vnc
+
+// update existing db w/ primary key
+
+Configuration page
 
 // Persist login across page refresh
 Preserve Login for x hours. Discard after x hours.
@@ -10,15 +14,15 @@ Preserve Login for x hours. Discard after x hours.
   - Check last access on each auth request. revoke if too old. Update if recent enough.
   - Check / update last access on button clicks?
 
-Separate "Start Broadcast Server" from "Start Broadcast"
-Separate start of broadcast server & start of broadcast stream
+//Separate "Start Broadcast Server" from "Start Broadcast"
+//Separate start of broadcast server & start of broadcast stream
   - Maybe have the stream terminate, and then restart as the broadcast starts?
   * Maybe stop stream, rm the pre-broadcast stream files, start the live stream, fade from black.
   - Would need to reset / overwrite the hls fragment ids on reconnect.
   # Maybe have nginx switch stream locations and reload?
   - What would happen with the viewing?
 
-Start OBS on "Start Broadcast" & stop OBS 5-10 seconds after Stop Broadcast?
+// Start OBS on "Start Broadcast" & stop OBS 5-10 seconds after Stop Broadcast?
 
 Real user login
 

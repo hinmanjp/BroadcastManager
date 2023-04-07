@@ -17,6 +17,8 @@ using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Data;
 using Vultr.API;
+using static MudBlazor.Colors;
+using System.Runtime.Intrinsics.X86;
 
 namespace BroadcastManager2.Pages
 {
@@ -36,6 +38,8 @@ namespace BroadcastManager2.Pages
         private DnsHelper.DnsSplit remoteDnsSplit;
         private SetupTimer? sTimer;
         private ClaimsPrincipal user;
+        private Vultr.Models.Instance remoteVM;
+ 
 
         //private string adminPW = "";
         private string vultrVmLabel = "";
@@ -61,7 +65,7 @@ namespace BroadcastManager2.Pages
         private string height = "auto";
         private bool showWaitingMsgOnStart;
 
-        public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height )
+        public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height, Vultr.Models.Instance remoteVM )
         {
             this.auth = auth;
             this.configuration = configuration;
@@ -89,6 +93,7 @@ namespace BroadcastManager2.Pages
             this.alert_msg = alert_msg;
             this.width = width;
             this.height = height;
+            this.remoteVM = remoteVM;
         }
 
         public Manager() { }
@@ -110,7 +115,6 @@ namespace BroadcastManager2.Pages
                 SharedState.CurrentState = SharedState.BroadcastState.stopped;
             obs_connected = obs.IsConnected;
             obs.Connected += onObsConnect;
-
 
             ProcessModule? mainModule = Process.GetCurrentProcess().MainModule;
             if ( mainModule != null )
@@ -138,6 +142,8 @@ namespace BroadcastManager2.Pages
 
             if ( !Path.IsPathRooted( sshPublicFile ) )
                 sshPublicFile = Path.Combine( appDir, sshPublicFile );
+
+            remoteVM = FindExistingRemoteServer();
 
             await Task.Delay( 0 );
             await base.OnInitializedAsync();
@@ -193,7 +199,7 @@ namespace BroadcastManager2.Pages
                 sTimer.StartTimer();
             }
 
-            var remoteVM = ExistingRemote.CurrentInstance;
+            
             if (string.IsNullOrWhiteSpace(remoteVM.id))
             {
                 alert_msg = "Starting a new broadcast server instance";
@@ -233,6 +239,15 @@ namespace BroadcastManager2.Pages
             {
                 alert_msg = "Remote server is not yet online!";
                 Refresh();
+            }
+
+            // make sure obs is actually running!
+            using SshClient sshClient = Ssh.GetSshClient( localServerDnsName );
+            sshClient.Connect();
+            if ( sshClient.IsConnected )
+            {
+                sshClient.RunCommand( "if [ $(ps aux | grep - c \"[o]bs\") - eq 0 ]; then DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &; sleep 5; fi" );
+                sshClient.Disconnect();
             }
 
             // connect to the obs websocket
@@ -340,6 +355,15 @@ namespace BroadcastManager2.Pages
 
             await DisableStunnel();
 
+            // shutdown the OBS instance
+            using SshClient sshClient = Ssh.GetSshClient( localServerDnsName );
+            sshClient.Connect();
+            if ( sshClient.IsConnected )
+            {
+                sshClient.RunCommand( "killall obs" );
+                sshClient.Disconnect();
+            }
+
             ChangeState( SharedState.BroadcastState.stopped );
 
             alert_msg = string.Empty;
@@ -420,11 +444,7 @@ namespace BroadcastManager2.Pages
 
         private async Task DisableStunnel()
         {
-
-            PrivateKeyFile keyFile = new PrivateKeyFile(sshPrivateFile);
-            var auth = new PrivateKeyAuthenticationMethod(username: "root", keyFiles: keyFile);
-            var ci = new Renci.SshNet.ConnectionInfo(host: localServerDnsName, username: "root", authenticationMethods: auth);
-            using ( SshClient sshClient = new SshClient( ci ) )
+            using ( SshClient sshClient = Ssh.GetSshClient( localServerDnsName ) )
             {
                 sshClient.Connect();
                 if ( sshClient.IsConnected )
@@ -460,6 +480,21 @@ namespace BroadcastManager2.Pages
             await Task.Delay( 0 );
         }
 
+        private Vultr.Models.Instance FindExistingRemoteServer()
+        {
+            var vc = new VultrClient(AppSettings.Config["VultrApiKey"] ?? "");
+            var instanceResult = vc.Instance.ListInstances();
+            if ( instanceResult != null )
+            {
+                var instance = instanceResult.Instances.FirstOrDefault(i => !string.IsNullOrEmpty(i.label) && i.label == (AppSettings.Config["VultrVmLabel"] ?? ""));
+                if ( instance != null )
+                {
+                    return instance;
+                }
+            }
+
+            return new Instance();
+        }
         private void Refresh()
         {
             _ = InvokeAsync( () =>
@@ -477,16 +512,28 @@ namespace BroadcastManager2.Pages
                 connection.Open(); // will create the db file if it doesn't exist
                 var command = connection.CreateCommand();
 
-                command.CommandText = @"SELECT name 
-FROM
-  sqlite_schema
-WHERE
-  type ='table' 
-  AND name = 'remote_vm'";
+                command.CommandText = @"
+SELECT count(*) 
+  FROM sqlite_schema 
+  WHERE TYPE='table'
+    AND name='remote_vm'
+    AND SQL LIKE '%vm_id TEXT PRIMARY KEY%';";
 
-                if ( command.ExecuteScalar() is null )
+                var keyCount = (int?)command.ExecuteScalar();
+                if (keyCount == 0)
                 {
-                    command.CommandText = "CREATE TABLE remote_vm (vm_id TEXT PRIMARY KEY, vm_ip TEXT, vm_label TEXT);";
+                    command.CommandText = @"SELECT name FROM sqlite_schema WHERE type ='table' AND name = 'remote_vm'";
+                    var tblExists = command.ExecuteScalar();
+                    command.CommandText = "";
+
+                    if ( tblExists != null )
+                        command.CommandText = "ALTER TABLE NAME remote_vm RENAME TO remote_vm_old;\n";
+
+                    command.CommandText += "CREATE TABLE remote_vm (vm_id TEXT PRIMARY KEY, vm_ip TEXT, vm_label TEXT);\n";
+
+                    if ( tblExists != null )
+                        command.CommandText += "INSERT INTO remote_vm (vm_id, vm_ip, vm_label) SELECT * FROM remote_vm_old;\n";
+
                     command.ExecuteNonQuery();
                 }
 
@@ -497,7 +544,10 @@ WHERE
                 command.Parameters.AddWithValue( "$id", instance.id );
                 command.Parameters.AddWithValue( "$ip", instance.main_ip );
                 command.Parameters.AddWithValue( "$label", instance.label);
+                try { 
                 command.ExecuteNonQuery();
+                }
+                catch (Exception ex) { var e1 = ex; }
             }
         }
 
@@ -539,12 +589,8 @@ WHERE
             if ( !File.Exists( broadcastAuthZip ) )
                 throw new FileNotFoundException( $"Broadcast Authorization zip file not found at path {broadcastAuthZip}" );
 
-            var keyFile = new PrivateKeyFile(sshPrivateFile);
-            var auth = new PrivateKeyAuthenticationMethod(username: "root", keyFiles: keyFile);
-            var ci = new Renci.SshNet.ConnectionInfo(host: serverIP, username: "root", authenticationMethods: auth);
 
-
-            using ( ScpClient scpClient = new ScpClient( ci ) )
+            using ( ScpClient scpClient = Ssh.GetScpClient( serverIP ) )
             using ( StreamReader appReader = new StreamReader( broadcastAuthZip ) )
             using ( StreamReader certReader = new StreamReader( sslCertPath ) )
             using ( StreamReader keyReader = new StreamReader( sslKeyPath ) )
@@ -562,7 +608,7 @@ WHERE
                 scpClient.Disconnect();
             }
 
-            using SshClient sshClient = new SshClient( ci );
+            using SshClient sshClient = Ssh.GetSshClient( serverIP );
             sshClient.Connect();
             if ( sshClient.IsConnected )
             {
@@ -620,7 +666,7 @@ WHERE
                 Refresh();
                 loopCount += 1;
                 await Task.Delay( 2000 );
-                var instanceDetail = vc.Instance.GetInstance(instanceInfo.Instances[0].id);
+                instanceInfo = vc.Instance.GetInstance(instanceInfo.Instances[0].id);
             }
             while ( instanceInfo.Instances[0].main_ip == "0.0.0.0" || loopCount >= 90 );
 
