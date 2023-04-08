@@ -21,12 +21,16 @@ var app = builder.Build();
 
 AppSettings.Config = app.Configuration;
 
+var settings = app.Configuration.Get<AppSettings>();
 // update dns records so that the broadcast manager can be found
-var dnsSplit = DnsHelper.SplitDnsName(app.Configuration["LocalServerDnsName"] ?? "");
+//var dnsSplit = DnsHelper.SplitDnsName(AppSettings.LocalServerDnsName ?? "");
 string ipv4Address = DnsHelper.GetLocalIPv4();
 
-var dns = new UpdateCloudflareDNS(app.Configuration["CloudFlareTokenKey"] ?? "");
-await dns.UpdateDnsAsync( dnsSplit.ZoneName, dnsSplit.RecordName, ipv4Address, new CancellationToken() );
+if ( !string.IsNullOrWhiteSpace( AppSettings.CloudFlareTokenKey ) && !string.IsNullOrWhiteSpace( AppSettings.DomainName ) )
+{
+    var dns = new UpdateCloudflareDNS(AppSettings.CloudFlareTokenKey ?? "");
+    await dns.UpdateDnsAsync( AppSettings.DomainName, AppSettings.LocalServerDnsHostName, ipv4Address, new CancellationToken() );
+}
 
 
 if ( !app.Environment.IsDevelopment() )

@@ -9,6 +9,9 @@
 REFACTOR willowbrook-ward.org to ifnorth.org
 REPLACE ALL HARDCODED references to domain names with variables
 
+VALIDATION OF config settings 
+
+Handle local storage login structure changes (discard)
 Preserve Login for x hours. Discard after x hours.
   - create object with claims and last access.
   - Check last access on each auth request. revoke if too old. Update if recent enough.

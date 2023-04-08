@@ -19,6 +19,8 @@ using System.Data;
 using Vultr.API;
 using static MudBlazor.Colors;
 using System.Runtime.Intrinsics.X86;
+using System.Diagnostics.Eventing.Reader;
+using System.Reflection;
 
 namespace BroadcastManager2.Pages
 {
@@ -107,6 +109,14 @@ namespace BroadcastManager2.Pages
                 this.InvokeAsync( () => { this.StateHasChanged(); } );
             };
 
+            var configValidation = ValidateAppSettings();
+            if ( !configValidation.IsValid )
+            {
+                alert_msg = configValidation.Message;
+                Refresh();
+                return;
+            }
+
             sTimer = new SetupTimer();
 
             localViewer = new StreamViewer();
@@ -120,21 +130,6 @@ namespace BroadcastManager2.Pages
             if ( mainModule != null )
                 appDir = Path.GetDirectoryName( mainModule.FileName ) ?? "";
 
-            if(configuration != null)
-            {
-                // load config settings from appsettings.json
-                cloudflareTokenKey = configuration["CloudFlareTokenKey"] ?? "";
-                localServerDnsName = configuration["LocalServerDnsName"] ?? "";
-                remoteServerDnsName = configuration["RemoteServerDnsName"] ?? "";
-                obsKey = configuration["ObsApiKey"] ?? "";
-                obsUrl = configuration["ObsUrl"] ?? "ws://127.0.0.1:4455";
-                //rtspServerDownloadUrl = configuration["RtspServerDownloadUrl"] ?? "";
-                sshPrivateFile = configuration["SshPrivateKeyFile"] ?? "BroadcastManager_ssh_key";
-                sshPublicFile = configuration["SshPublicKeyFile"] ?? "BroadcastManager_ssh_key.pub";
-                vultrKey = configuration["VultrApiKey"] ?? "";
-                vultrVmLabel = configuration["VultrVmLabel"] ?? "";
-                waitForObsConnection = Convert.ToInt32( configuration["WaitSecsForObsConnection"] ?? "10" );
-            }
             remoteDnsSplit = DnsHelper.SplitDnsName( remoteServerDnsName );
 
             if ( !Path.IsPathRooted( sshPrivateFile ) )
@@ -147,6 +142,11 @@ namespace BroadcastManager2.Pages
 
             await Task.Delay( 0 );
             await base.OnInitializedAsync();
+        }
+
+        public bool IsNullable<T>( T value )
+        {
+            return Nullable.GetUnderlyingType( typeof( T ) ) != null;
         }
 
         protected override async Task OnAfterRenderAsync( bool firstRender )
@@ -178,16 +178,6 @@ namespace BroadcastManager2.Pages
 
         private async Task OnBtnStart()
         {
-            // REALLY should report a problem on the login page and just not work if a private key has not been provided / configured. App needs the private key of the Local Server to work properly.
-            // OR - if we have the local username & password, should sudo to root and install the public key to allow ssh after key is created.
-            // generate an ssh key pair if either doesn't exist
-            if ( !File.Exists( sshPrivateFile ) || !File.Exists( sshPublicFile ) )
-            {
-                //var sshResult = Cli.Wrap("$(/usr/bin/which ssh-keygen)")
-                //  .WithArguments($"-q -N '' -t ed25519 -C '{sshPrivateFile}' -f {Path.Combine(appDir, sshPrivateFile)}  <<<y >/dev/null 2>&1")
-                //  .WithWorkingDirectory(appDir);
-            }
-
             if ( !ChangeState( SharedState.BroadcastState.starting ) )
             {
                 return;
@@ -377,7 +367,7 @@ namespace BroadcastManager2.Pages
             await StopVultrVm();
 
             // remove dns records
-            var dns = new UpdateCloudflareDNS(configuration["CloudFlareTokenKey"] ?? "");
+            var dns = new UpdateCloudflareDNS(AppSettings.CloudFlareTokenKey ?? "");
             var deleteDnsResult = await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
 
             await Task.Delay( 0 );
@@ -553,53 +543,20 @@ SELECT count(*)
 
         private void SetupRemoteBroadcastServer( string serverIP )
         {
-            // string authServiceRemoteDir = "/opt/broadcastAuth";
-            string sslCertPath = configuration["SslCertPath"] ?? "";
-            string sslKeyPath = configuration["SslKeyPath"] ?? "";
-            string sslPfxPath = configuration["SslPfxPath"] ?? "";
-            string remoteSetupScript = configuration["RemoteSetupScript"] ?? "";
-            string broadcastAuthZip = configuration["BroadcastAuthZip"] ?? "";
-            string sslKeyDestPath = "/etc/ssl/willowbrook-ward.org.key";
-            string sslPfxDestPath = "/etc/ssl/willowbrook-ward.org.pfx";
-
-            if ( String.IsNullOrWhiteSpace( sshPrivateFile ) )
-                throw new ArgumentException( "sshPrivateFile must be specified and valid" );
-
-            if ( String.IsNullOrWhiteSpace( sslCertPath ) )
-                throw new ArgumentException( "sslCertPath must be specified and valid" );
-
-            if ( String.IsNullOrWhiteSpace( sslKeyPath ) )
-                throw new ArgumentException( "sslKeyPath must be specified and valid" );
-
-            if ( !File.Exists( sshPrivateFile ) )
-                throw new FileNotFoundException( $"ssh key file not found at path {sshPrivateFile}" );
-
-            if ( !File.Exists( sslCertPath ) )
-                throw new FileNotFoundException( $"SSL certificate file not found at path {sslCertPath}" );
-
-            if ( !File.Exists( sslKeyPath ) )
-                throw new FileNotFoundException( $"SSL key file not found at path {sslKeyPath}" );
-
-            if ( !File.Exists( sslPfxPath ) )
-                throw new FileNotFoundException( $"SSL key file not found at path {sslPfxPath}" );
-
-            if ( !File.Exists( remoteSetupScript ) )
-                throw new FileNotFoundException( $"Remote setup script not found at path {remoteSetupScript}" );
-
-            if ( !File.Exists( broadcastAuthZip ) )
-                throw new FileNotFoundException( $"Broadcast Authorization zip file not found at path {broadcastAuthZip}" );
+            string sslKeyDestPath = $"/etc/ssl/{AppSettings.DomainName}.key";
+            string sslPfxDestPath = $"/etc/ssl/{AppSettings.DomainName}.pfx";
 
 
             using ( ScpClient scpClient = Ssh.GetScpClient( serverIP ) )
-            using ( StreamReader appReader = new StreamReader( broadcastAuthZip ) )
-            using ( StreamReader certReader = new StreamReader( sslCertPath ) )
-            using ( StreamReader keyReader = new StreamReader( sslKeyPath ) )
-            using ( StreamReader pfxReader = new StreamReader( sslPfxPath ) )
-            using ( StreamReader remoteSetupReader = new StreamReader( remoteSetupScript ) )
+            using ( StreamReader appReader = new StreamReader( AppSettings.BroadcastAuthZip ) )
+            using ( StreamReader certReader = new StreamReader( AppSettings.SslCertPath ) )
+            using ( StreamReader keyReader = new StreamReader( AppSettings.SslKeyPath ) )
+            using ( StreamReader pfxReader = new StreamReader( AppSettings.SslPfxPath ) )
+            using ( StreamReader remoteSetupReader = new StreamReader( AppSettings.RemoteSetupScript.Replace( "", AppSettings.DomainName ) ) )
             {
                 scpClient.Connect();
                 scpClient.Upload( source: appReader.BaseStream, path: "/tmp/broadcastAuth.zip" );
-                scpClient.Upload( source: certReader.BaseStream, path: "/etc/ssl/willowbrook-ward.org.full-chain.crt" );
+                scpClient.Upload( source: certReader.BaseStream, path: $"/etc/ssl/{AppSettings.DomainName}.full-chain.crt" );
                 scpClient.Upload( source: keyReader.BaseStream, path: sslKeyDestPath );
                 scpClient.Upload( source: pfxReader.BaseStream, path: sslPfxDestPath );
                 scpClient.Upload( source: remoteSetupReader.BaseStream, path: "/tmp/remote_setup.sh" );
@@ -720,6 +677,40 @@ SELECT count(*)
             }
 
             await Task.Delay( 0 );
+        }
+        private ValidationResponse ValidateAppSettings()
+        {
+            var response = new ValidationResponse(true, "");
+            var appSettings = new AppSettings(configuration);
+
+            foreach ( PropertyInfo pi in appSettings.GetType().GetProperties( BindingFlags.Public | BindingFlags.Instance ) )
+            {
+                if ( IsNullable( pi.GetType() ) )
+                {
+                    response.IsValid = false;
+                    response.Message += $"{pi.Name} is required, but has not been set.<br/>";
+                }
+            }
+
+            if ( !string.IsNullOrWhiteSpace( AppSettings.SshPrivateKeyFile ) && !File.Exists( AppSettings.SshPrivateKeyFile ) )
+                response.Message += $"ssh key file not found at path {AppSettings.SshPrivateKeyFile}";
+
+            if ( !string.IsNullOrWhiteSpace( AppSettings.SslCertPath ) && !File.Exists( AppSettings.SslCertPath ) )
+                response.Message += $"SSL certificate file not found at path {AppSettings.SslCertPath}";
+
+            if ( !string.IsNullOrWhiteSpace( AppSettings.SslKeyPath ) && !File.Exists( AppSettings.SslKeyPath ) )
+                response.Message += $"SSL key file not found at path {AppSettings.SslKeyPath}";
+
+            if ( !string.IsNullOrWhiteSpace( AppSettings.SslPfxPath ) && !File.Exists( AppSettings.SslPfxPath ) )
+                response.Message += $"SSL key file not found at path {AppSettings.SslPfxPath}";
+
+            if ( !string.IsNullOrWhiteSpace( AppSettings.RemoteSetupScript ) && !File.Exists( AppSettings.RemoteSetupScript ) )
+                response.Message += $"Remote setup script not found at path {AppSettings.RemoteSetupScript}";
+
+            if ( !string.IsNullOrWhiteSpace( AppSettings.BroadcastAuthZip ) && !File.Exists( AppSettings.BroadcastAuthZip ) )
+                response.Message += $"Broadcast Authorization zip file not found at path {AppSettings.BroadcastAuthZip}";
+
+            return response;
         }
 
         private async Task WaitForHlsStartAsync( string serverIP )
