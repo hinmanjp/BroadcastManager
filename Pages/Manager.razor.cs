@@ -557,7 +557,8 @@ SELECT count(*)
                 .Replace( "{{SSL_KEY_PATH}}", sslKeyDestPath )
                 .Replace( "{{SSL_PFX_PATH}}", sslPfxDestPath )
                 .Replace( "{{ESCAPED_CERT_PATH}}", escapedCertPath )
-                .Replace( "{{ESCAPED_KEY_PATH}}", escapedKeyPath );
+                .Replace( "{{ESCAPED_KEY_PATH}}", escapedKeyPath )
+                .Replace( "{{VULTR_API_KEY}}", AppSettings.VultrApiKey );
 
             // should this be Encoding.UTF8 ???
             byte[] bytes = Encoding.ASCII.GetBytes(data);
