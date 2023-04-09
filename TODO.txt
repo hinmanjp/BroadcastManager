@@ -6,10 +6,10 @@
 
 // update existing db w/ primary key
 
-REFACTOR willowbrook-ward.org to ifnorth.org
-REPLACE ALL HARDCODED references to domain names with variables
+//REFACTOR willowbrook-ward.org to ifnorth.org
+//REPLACE ALL HARDCODED references to domain names with variables
 
-VALIDATION OF config settings 
+% VALIDATION OF config settings 
 
 Handle local storage login structure changes (discard)
 Preserve Login for x hours. Discard after x hours.
@@ -21,16 +21,6 @@ make video available until midnight
   - nginx rtmp hls settings
   - schedule self destruct cron command
 
-
-Configuration page
-  - configuration class
-  - bind mub blazor table to class
-  - some settings are per ward - need to be saved in db
-  - some settings are global - save in appsettings.json
-  - load global settings on start
-  - reload global settings on user login
-  - load ward settings on user login
-
 END USER Authentication to watch the broadcast
   - GUI for creating auth codes tied to unit & dates
   - have stream name = the unit/date auth code
@@ -40,6 +30,20 @@ END USER Authentication to watch the broadcast
   - HOW to make sure this is captured & reported w/o getting lost?
   
 Show current ward / date auth code on management page
+
+
+Configurable stream expiration time
+  - cron to delete stream at xx time
+  - advanced setting button to remove broadcast recording now
+
+Configuration page
+  - configuration class
+  - bind mub blazor table to class
+  - some settings are per ward - need to be saved in db
+  - some settings are global - save in appsettings.json
+  - load global settings on start
+  - reload global settings on user login
+  - load ward settings on user login
 
 // Persist login across page refresh
 
