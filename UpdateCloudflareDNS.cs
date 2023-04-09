@@ -29,17 +29,19 @@ namespace BroadcastManager2
                 using var client = new CloudFlareClient(_authentication);
 
                 var zones = (await client.Zones.GetAsync(cancellationToken: cancellationToken)).Result;
-                var zone = zones.Where(z => z.Name == zoneName).FirstOrDefault();
+                var zone = zones.Where(z => z.Name.ToLower() == zoneName.ToLower()).FirstOrDefault();
 
-                if (zone is not null && zone.Name == zoneName)
+                if (zone is not null)
                 {
                     var records = (await client.Zones.DnsRecords.GetAsync(zone.Id, new DnsRecordFilter { Type = DnsRecordType.A }, null, cancellationToken)).Result;
 
-                    var record = records.Where(r => r.Name == fullName).FirstOrDefault();
+                    var record = records.Where(r => r.Name.ToLower() == fullName.ToLower()).FirstOrDefault();
 
-                    if (record is not null && record.Name == fullName)
+                    if ( record is not null )
                     {
-                        if (record.Content != IPv4address) // update the record if the IP is not what is wanted
+                        if ( record.Content == IPv4address ) // update the record if the IP is not what is wanted
+                            return true;
+                        else
                         {
                             var modified = new ModifiedDnsRecord
                             {

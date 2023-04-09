@@ -41,24 +41,24 @@ namespace BroadcastManager2.Pages
         private bool showRemote = false;
         private DnsHelper.DnsSplit remoteDnsSplit;
         private SetupTimer? sTimer;
-        private ClaimsPrincipal user;
+        //private ClaimsPrincipal user;
         private Vultr.Models.Instance remoteVM;
  
 
         //private string adminPW = "";
-        private string vultrVmLabel = "";
-        private string appDir = "";
-        private string cloudflareTokenKey = "";
-        private string localServerDnsName = "";
-        private string remoteServerDnsName = "";
+        //private string vultrVmLabel = "";
+        //private string appDir = "";
+        //private string cloudflareTokenKey = "";
+        //private string localServerDnsName = "";
+        //private string remoteServerDnsName = "";
 
-        private string obsKey = "";
-        private string obsUrl = "";
+        //private string obsKey = "";
+        //private string obsUrl = "";
         private int remoteRtmpPort = 1936;
         private bool showLocalPlayer = true;
-        private string sshPrivateFile = "";
-        private string sshPublicFile = "";
-        private string vultrKey = "";
+        //private string sshPrivateFile = "";
+        //private string sshPublicFile = "";
+        //private string vultrKey = "";
         private string vultrUrl = "https://api.vultr.com/v2/";
         private int waitForObsConnection;
 
@@ -69,38 +69,38 @@ namespace BroadcastManager2.Pages
         private string height = "auto";
         private bool showWaitingMsgOnStart;
 
-        public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height, Vultr.Models.Instance remoteVM )
-        {
-            this.auth = auth;
-            this.configuration = configuration;
-            this.httpClientFactory = httpClientFactory;
-            this.obs = obs;
-            this.tcs = tcs;
-            this.localViewer = localViewer;
-            this.showRemote = showRemote;
-            this.remoteDnsSplit = remoteDnsSplit;
-            this.sTimer = sTimer;
-            this.user = user;
-            this.appDir = appDir;
-            this.localServerDnsName = localServerDnsName;
-            this.remoteServerDnsName = remoteServerDnsName;
-            this.obsKey = obsKey;
-            this.obsUrl = obsUrl;
-            this.remoteRtmpPort = remoteRtmpPort;
-            this.showLocalPlayer = showLocalPlayer;
-            this.sshPrivateFile = sshPrivateFile;
-            this.sshPublicFile = sshPublicFile;
-            this.vultrKey = vultrKey;
-            this.vultrUrl = vultrUrl;
-            this.waitForObsConnection = waitForObsConnection;
-            this.obs_connected = obs_connected;
-            this.alert_msg = alert_msg;
-            this.width = width;
-            this.height = height;
-            this.remoteVM = remoteVM;
-        }
+        //public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height, Vultr.Models.Instance remoteVM )
+        //{
+        //    this.auth = auth;
+        //    this.configuration = configuration;
+        //    this.httpClientFactory = httpClientFactory;
+        //    this.obs = obs;
+        //    this.tcs = tcs;
+        //    this.localViewer = localViewer;
+        //    this.showRemote = showRemote;
+        //    this.remoteDnsSplit = remoteDnsSplit;
+        //    this.sTimer = sTimer;
+        //    this.user = user;
+        //    this.appDir = appDir;
+        //    this.localServerDnsName = localServerDnsName;
+        //    this.remoteServerDnsName = remoteServerDnsName;
+        //    this.obsKey = obsKey;
+        //    this.obsUrl = obsUrl;
+        //    this.remoteRtmpPort = remoteRtmpPort;
+        //    this.showLocalPlayer = showLocalPlayer;
+        //    this.sshPrivateFile = sshPrivateFile;
+        //    this.sshPublicFile = sshPublicFile;
+        //    this.vultrKey = vultrKey;
+        //    this.vultrUrl = vultrUrl;
+        //    this.waitForObsConnection = waitForObsConnection;
+        //    this.obs_connected = obs_connected;
+        //    this.alert_msg = alert_msg;
+        //    this.width = width;
+        //    this.height = height;
+        //    this.remoteVM = remoteVM;
+        //}
 
-        public Manager() { }
+        //public Manager() { }
 
         protected override async Task OnInitializedAsync()
         {
@@ -128,18 +128,6 @@ namespace BroadcastManager2.Pages
             obs_connected = obs.IsConnected;
             obs.Connected += onObsConnect;
 
-            ProcessModule? mainModule = Process.GetCurrentProcess().MainModule;
-            if ( mainModule != null )
-                appDir = Path.GetDirectoryName( mainModule.FileName ) ?? "";
-
-            remoteDnsSplit = DnsHelper.SplitDnsName( remoteServerDnsName );
-
-            if ( !Path.IsPathRooted( sshPrivateFile ) )
-                sshPrivateFile = Path.Combine( appDir, sshPrivateFile );
-
-            if ( !Path.IsPathRooted( sshPublicFile ) )
-                sshPublicFile = Path.Combine( appDir, sshPublicFile );
-
             remoteVM = FindExistingRemoteServer();
 
             await Task.Delay( 0 );
@@ -154,9 +142,9 @@ namespace BroadcastManager2.Pages
         protected override async Task OnAfterRenderAsync( bool firstRender )
         {
             await base.OnAfterRenderAsync( firstRender );
-            var authstate = await auth.GetAuthenticationStateAsync();
-            Refresh();
-            user = authstate.User;
+            //var authstate = await auth.GetAuthenticationStateAsync();
+            //Refresh();
+            //user = authstate.User;
             if ( firstRender )
             {
                 if ( sTimer != null )
@@ -206,9 +194,9 @@ namespace BroadcastManager2.Pages
             SaveRemoteVmInfo( remoteVM );
 
             // update DNS records so that the remote server can be found
-            var dns = new UpdateCloudflareDNS(cloudflareTokenKey);
+            var dns = new UpdateCloudflareDNS(AppSettings.CloudFlareTokenKey);
 
-            var dnsUpdateResult = await dns.UpdateDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, remoteVM.main_ip, new CancellationToken());
+            var dnsUpdateResult = await dns.UpdateDnsAsync(AppSettings.DomainName, AppSettings.RemoteServerDnsHostName, remoteVM.main_ip, new CancellationToken());
 
 
             // wait for remote server setup & 1st reboot to complete - poll & sleep
@@ -234,11 +222,15 @@ namespace BroadcastManager2.Pages
             }
 
             // make sure obs is actually running!
-            using SshClient sshClient = Ssh.GetSshClient( localServerDnsName );
+            using SshClient sshClient = Ssh.GetSshClient( AppSettings.LocalServerDnsHostName + "." + AppSettings.DomainName );
             sshClient.Connect();
             if ( sshClient.IsConnected )
             {
-                sshClient.RunCommand( "if [ $(ps aux | grep - c \"[o]bs\") - eq 0 ]; then DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &; sleep 5; fi" );
+                var obsCmd = sshClient.CreateCommand( @"nohup /opt/startobs.sh > foo.out 2> foo.err < /dev/null &" );
+                obsCmd.Execute();
+                //var r2 = sshClient.RunCommand( @"if [ $(ps aux | grep -c '[o]bs') -eq 0 ]; then DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs & fi" );
+                //var r2 = sshClient.RunCommand( "DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &" );
+                
                 sshClient.Disconnect();
             }
 
@@ -348,7 +340,7 @@ namespace BroadcastManager2.Pages
             await DisableStunnel();
 
             // shutdown the OBS instance
-            using SshClient sshClient = Ssh.GetSshClient( localServerDnsName );
+            using SshClient sshClient = Ssh.GetSshClient( AppSettings.LocalServerDnsHostName + "." + AppSettings.DomainName );
             sshClient.Connect();
             if ( sshClient.IsConnected )
             {
@@ -415,7 +407,7 @@ namespace BroadcastManager2.Pages
             try
             {
                 if ( !obs.IsConnected )
-                    await obs.ConnectAsync( obsUrl, obsKey );
+                    await obs.ConnectAsync( AppSettings.ObsUrl, AppSettings.ObsApiKey );
             }
             catch ( Exception ex )
             {
@@ -436,7 +428,7 @@ namespace BroadcastManager2.Pages
 
         private async Task DisableStunnel()
         {
-            using ( SshClient sshClient = Ssh.GetSshClient( localServerDnsName ) )
+            using ( SshClient sshClient = Ssh.GetSshClient( AppSettings.LocalServerDnsHostName + "." + AppSettings.DomainName ) )
             {
                 sshClient.Connect();
                 if ( sshClient.IsConnected )
@@ -456,10 +448,8 @@ namespace BroadcastManager2.Pages
             // ssh to the local server as entered in config (should be localhost in prod)
             // rewrite the nginx conf to push to the new remote server based on ip. Eventually might need to generate a self signed certificate for the IP and trust it. If nginx rtmp can ever by encrypted.
             // reload nginx (systemctl reload nginx)
-            var keyFile = new PrivateKeyFile(sshPrivateFile);
-            var auth = new PrivateKeyAuthenticationMethod(username: "root", keyFiles: keyFile);
-            var ci = new Renci.SshNet.ConnectionInfo(host: localServerDnsName, username: "root", authenticationMethods: auth);
-            using ( SshClient sshClient = new SshClient( ci ) )
+
+            using ( SshClient sshClient = Ssh.GetSshClient( AppSettings.LocalServerDnsHostName + "." + AppSettings.DomainName ) )
             {
                 sshClient.Connect();
                 if ( sshClient.IsConnected )
@@ -511,7 +501,7 @@ SELECT count(*)
     AND name='remote_vm'
     AND SQL LIKE '%vm_id TEXT PRIMARY KEY%';";
 
-                var keyCount = (int?)command.ExecuteScalar();
+                var keyCount = (long?)command.ExecuteScalar();
                 if (keyCount == 0)
                 {
                     command.CommandText = @"SELECT name FROM sqlite_schema WHERE type ='table' AND name = 'remote_vm'";
@@ -594,16 +584,16 @@ SELECT count(*)
         private async Task StartLocalPlayer()
         {
             if ( localViewer is not null )
-                await localViewer.StartPlayerAsync( StreamUrl: $"wss://{localServerDnsName}:3334/app/sac1"
+                await localViewer.StartPlayerAsync( StreamUrl: $"wss://{AppSettings.LocalServerDnsHostName}:3334/app/sac1"
                                                  , sourceType: StreamViewer.SourceType.webrtc );
         }
 
         private async Task<Instance> StartVultrVm()
         {
             // need to read the public key data from the public key file.
-            string sshPublicKey = File.ReadAllText(sshPublicFile);
+            string sshPublicKey = File.ReadAllText(AppSettings.SshPublicKeyFile);
 
-            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: vultrKey, apiURL: vultrUrl);
+            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: AppSettings.VultrApiKey, apiURL: vultrUrl);
 
             var sshList = vc.SSHKey.GetSSHKeys();
             var sshKey = sshList.SshKeys.Where(s => s.ssh_key == sshPublicKey).FirstOrDefault(new Ssh_Key());
@@ -630,7 +620,7 @@ SELECT count(*)
 
             var script = vc.StartupScript.GetStartupScripts().StartupScripts.Where(s => s.name == "test").FirstOrDefault(new Startup_Scripts());
 
-            var instanceInfo = vc.Instance.CreateInstance(Label: vultrVmLabel, Hostname: vultrVmLabel, RegionID: regionID, PlanID: plan1.id, SourceID: os.id.ToString(), Source: Vultr.Clients.InstanceClient.SourceType.os, ScriptID: script.id, SshKeyIDs: new[] { sshKey.id });
+            var instanceInfo = vc.Instance.CreateInstance(Label: AppSettings.VultrVmLabel, Hostname: AppSettings.VultrVmLabel, RegionID: regionID, PlanID: plan1.id, SourceID: os.id.ToString(), Source: Vultr.Clients.InstanceClient.SourceType.os, ScriptID: script.id, SshKeyIDs: new[] { sshKey.id });
 
             // give the provider a few seconds to allocate an IP address for the remote server
             int loopCount = 0;
@@ -655,7 +645,7 @@ SELECT count(*)
 
         private async Task StopVultrVm()
         {
-            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: vultrKey, apiURL: vultrUrl);
+            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: AppSettings.VultrApiKey, apiURL: vultrUrl);
             // lookup list of vm ids
 
             List<string> idList = new List<string>();
@@ -698,12 +688,13 @@ SELECT count(*)
         private ValidationResponse ValidateAppSettings()
         {
             var response = new ValidationResponse(true, "");
-            var appSettings = new AppSettings();
-            configuration.Bind( appSettings );
-
-            foreach ( PropertyInfo pi in appSettings.GetType().GetProperties( BindingFlags.Public | BindingFlags.Instance ) )
+            //var appSettings = new AppSettings();
+            //configuration.Bind( appSettings );
+            
+            Type type = typeof(AppSettings);
+            foreach ( PropertyInfo pi in type.GetProperties( BindingFlags.Public | BindingFlags.Static ) )
             {
-                if ( IsNullable( pi.GetType() ) )
+                if ( pi.CanRead && pi.GetValue( null, null ) == null )
                 {
                     response.IsValid = false;
                     response.Message += $"{pi.Name} is required, but has not been set.<br/>";
@@ -733,12 +724,9 @@ SELECT count(*)
 
         private async Task WaitForHlsStartAsync( string serverIP )
         {
-            var keyFile = new PrivateKeyFile(sshPrivateFile);
-            var auth = new PrivateKeyAuthenticationMethod(username: "root", keyFiles: keyFile);
-            var ci = new Renci.SshNet.ConnectionInfo(host: serverIP, username: "root", authenticationMethods: auth);
             try
             {
-                using ( SshClient sshClient = new SshClient( ci ) )
+                using ( SshClient sshClient = Ssh.GetSshClient( serverIP ) )
                 {
                     sshClient.Connect();
                     if ( sshClient.IsConnected )

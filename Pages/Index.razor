@@ -35,12 +35,13 @@
         if ( !IsValid( code ) )
             return;
 
-        var claims = new Claim[] { new Claim(ClaimTypes.Name, code) };
+        var claims = new Claim[] { new Claim(ClaimTypes.Name, code)
+                                 , new Claim(ClaimTypes.Expiration, DateTime.UtcNow.AddMinutes(90).ToString(), typeof(DateTime).FullName) 
+        };
         var claimsJson = JsonConvert.SerializeObject( claims );
         await pss.SetAsync("auth", "claims", claimsJson);
         var result = await auth.GetAuthenticationStateAsync();
 
-        
 
         if (result.User.Identity.IsAuthenticated)
         {

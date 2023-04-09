@@ -27,4 +27,10 @@
         user = authstate.User;
         await Task.Delay(0);
     }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+
+        await Task.Delay(0);
+    }
 }

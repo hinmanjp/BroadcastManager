@@ -18,22 +18,7 @@ namespace BroadcastManager2
 
         private static Renci.SshNet.ConnectionInfo GetConnectionInfo(string ServerAddress) 
         {
-
-            string appDir = "";
-            string sshPrivateFile = "";
-            string sshPublicFile = "";
-
-            ProcessModule? mainModule = Process.GetCurrentProcess().MainModule;
-            if ( mainModule != null )
-                appDir = Path.GetDirectoryName( mainModule.FileName ) ?? "";
-
-            if ( !Path.IsPathRooted( sshPrivateFile ) )
-                sshPrivateFile = Path.Combine( appDir, sshPrivateFile );
-
-            if ( !Path.IsPathRooted( sshPublicFile ) )
-                sshPublicFile = Path.Combine( appDir, sshPublicFile );
-
-            var sshKeyFile = new PrivateKeyFile( sshPrivateFile );
+            var sshKeyFile = new PrivateKeyFile( AppSettings.SshPrivateKeyFile );
             var sshAuthMethod = new PrivateKeyAuthenticationMethod( username: "root", keyFiles: sshKeyFile );
             var sshConInfo = new Renci.SshNet.ConnectionInfo( host: ServerAddress, username: "root", authenticationMethods: sshAuthMethod );
             return sshConInfo;

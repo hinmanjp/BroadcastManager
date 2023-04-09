@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+groupadd -f ssl-cert
 
 chmod 440 {{SSL_KEY_PATH}} ; chown :ssl-cert {{SSL_KEY_PATH}}
 chmod 440 {{SSL_PFX_PATH}} ; chown :ssl-cert {{SSL_PFX_PATH}}
@@ -10,18 +11,18 @@ if [ $(grep -c "{{DOMAIN}}" /etc/hosts) -eq 0 ]; then
 cat << EOF >> /etc/hosts
 127.0.0.1    localhost.{{DOMAIN}}
 EOF
-; fi
+fi
 
 ###############################################################
 #  START INSTALL OF DOTNET RUNTIME                            #
 # Tell ubuntu to prefer Microsoft's .net packages over it's own
-if [ ! -f /etc/apt/preferences ] || [ $(grep -c "Package: dotnet\* aspnet\* netstandard\*" /etc/apt/preferences) -eq 0 ]; then
-cat << EOF >> /etc/apt/preferences
+#if [ ! -f /etc/apt/preferences ] || [ $(grep -c "Package: dotnet\* aspnet\* netstandard\*" /etc/apt/preferences) -eq 0 ]; then
+cat << EOF > /etc/apt/preferences.d/dotnet
 Package: dotnet* aspnet* netstandard*
 Pin: origin "archive.ubuntu.com"
 Pin-Priority: -10
 EOF
-; fi
+#fi
 
 # Get Ubuntu version
 declare repo_version=$(if command -v lsb_release &> /dev/null; then lsb_release -r -s; else grep -oP '(?<=^VERSION_ID=).+' /etc/os-release | tr -d '"'; fi)
@@ -30,13 +31,13 @@ declare repo_version=$(if command -v lsb_release &> /dev/null; then lsb_release 
 wget https://packages.microsoft.com/config/ubuntu/$repo_version/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
 
 # Install Microsoft signing key and repository
-sudo dpkg -i packages-microsoft-prod.deb
+dpkg -i packages-microsoft-prod.deb
 
 # Clean up
 rm packages-microsoft-prod.deb
 
 # Update packages
-sudo apt update
+apt update
 
 # install nginx, the rtmp mod, and .net core
 apt install -y libnginx-mod-rtmp aspnetcore-runtime-7.0
@@ -70,7 +71,7 @@ cat << EOF >>  /opt/broadcastAuth/appsettings.json
   }
 }
 EOF
-; fi
+fi
 
 
 # open the port to the authorizer
@@ -99,7 +100,7 @@ chmod 755 /var/www/html/stream/{hls,dash}
 # if the ssl section isn't already configured, add it
 if [ $(grep -c "{{ESCAPED_CERT_PATH}}" /etc/nginx/nginx.conf) -eq 0 ]; then
 sed -ri 's/(^\s+ssl_prefer_server_ciphers on;)/\1\n        ssl_certificate     {{ESCAPED_CERT_PATH}};\n        ssl_certificate_key {{ESCAPED_KEY_PATH}};/' /etc/nginx/nginx.conf
-; fi
+fi
 
 # add rtmp config to nginx if it doesn't already exist
 if [ $(grep -c "rtmp" /etc/nginx/nginx.conf) -eq 0 ]; then
@@ -147,7 +148,7 @@ rtmp {
         }
 }
 EOF
-; fi
+fi
 
 
 # expose the rtmp stats & public site 

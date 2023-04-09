@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Vultr.API.Models;
+using BroadcastManager2.Extensions;
+using Microsoft.AspNetCore.Authentication;
+using Renci.SshNet.Security;
 
 namespace BroadcastManager2
 {
@@ -28,6 +32,18 @@ namespace BroadcastManager2
                 {
                     var claims = JsonConvert.DeserializeObject<SimpleClaim[]>( result.Value ?? "{}" );
                     identity = new ClaimsIdentity( claims, "custom_auth" );
+                    // validate that the user REALLY is authenticated and that the expriation date for the login hasn't passed.
+                    // Update the expriation date if still valid.
+                    if ( identity.IsAuthenticated && identity.GetExpiration() > DateTime.UtcNow )
+                    {
+                        var newClaims = new Claim[] { new Claim(ClaimTypes.Name, identity?.Name)
+                                 , new Claim(ClaimTypes.Expiration, DateTime.UtcNow.AddMinutes(90).ToString(), typeof(DateTime).FullName) };
+                        var claimsJson = JsonConvert.SerializeObject( newClaims );
+                        await pss.SetAsync( "auth", "claims", claimsJson );
+                    }
+                    else
+                        identity = null;
+                    
                 }
             }
             
@@ -35,6 +51,7 @@ namespace BroadcastManager2
             identity ??= new ClaimsIdentity();
             var user = new ClaimsPrincipal(identity);
 
+            
             NotifyAuthenticationStateChanged( Task.FromResult( new AuthenticationState( user ) ) );
             await Task.Delay( 0 );
             return new AuthenticationState( user );
