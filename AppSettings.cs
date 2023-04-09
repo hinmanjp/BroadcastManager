@@ -4,21 +4,19 @@ namespace BroadcastManager2
 {
     public class AppSettings
     {
-        private static IConfiguration? _config;
-        public static IConfiguration Config
-        {
-            get { return _config ?? new ConfigurationBuilder().Build(); }
-            internal set { _config = value; }
-        }
-        public AppSettings( IConfiguration configuration )
-        {
-            _config = configuration;
-        }
 
-        private static string? sslCertPath;
-        private static string? sslKeyPath;
-        private static string? sslPfxPath;
-        private static string? masterPass;
+        public AppSettings() 
+        { }
+
+        private static string? domainName;
+        //private static string sslCertPath = "";
+        //private static string sslKeyPath = "";
+        //private static string sslPfxPath = "";
+        private static string? overrideSslCertPath;
+        private static string? overrideSslKeyPath;
+        private static string? overrideSslPfxPath;
+
+        private static string? sslBasePath;
 
         public static Logging? Logging { get; set; }
         public static string AllowedHosts { get; set; } = "*";
@@ -28,26 +26,49 @@ namespace BroadcastManager2
         public static string? SshPrivateKeyFile { get; set; }
         public static string? SshPublicKeyFile { get; set; }
         public static string? ObsApiKey { get; set; }
-        public static string? OverrideObsUrl { get; set; }
-        public static string ObsUrl { get; set; } = OverrideObsUrl ?? "ws://127.0.0.1:4455";
+        public static string? OverrideObsUrl { get { return ObsUrl; } set { ObsUrl = string.IsNullOrWhiteSpace(value) ? ObsUrl : value; } }
+        public static string ObsUrl { get; set; } = "ws://127.0.0.1:4455";
         //public static string? AdminUser { get; set; }
         //public static string? AdminPW { get; set; }
         public static string? CloudFlareTokenKey { get; set; }
-        public static string? DomainName { get; set; }
+        public static string? DomainName { 
+            get { return domainName; } 
+            set
+            { 
+                domainName = value;
+                SetSslPaths();
+            } 
+        }
         public static string LocalServerDnsHostName { get; set; } = "manage";
         public static string RemoteServerDnsHostName { get; set; } = "watch";
-        public static string? AppMasterPassword { get { return masterPass; } set { masterPass = string.IsNullOrWhiteSpace( value ) ? null : value; } } 
+        public static string? AppMasterPassword { get; set; }
         public static int WaitSecsForObsConnection { get; set; } = 10;
-        public static string? OverrideSslCertPath { get { return sslCertPath; } set { sslCertPath = string.IsNullOrWhiteSpace( value ) ? null : value; } } 
-        public static string? OverrideSslKeyPath { get { return sslKeyPath; } set { sslKeyPath = string.IsNullOrWhiteSpace( value ) ? null : value; } }
-        public static string? OverrideSslPfxPath { get { return sslPfxPath; } set { sslPfxPath = string.IsNullOrWhiteSpace( value ) ? null : value; } }
-        public static string SslBasePath { get; set; } = "/etc/ssl";
-        public static string SslCertPath { get; set; } = OverrideSslCertPath ?? $"{SslBasePath.TrimEnd('/')}/{DomainName}.full-chain.crt";
-        public static string SslKeyPath { get; set; } = OverrideSslKeyPath ?? $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.key";
-        public static string SslPfxPath { get; set; } = OverrideSslPfxPath ?? $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.pfx";
+        public static string? OverrideSslCertPath { set { SslCertPath = overrideSslCertPath = value; } }
+        public static string? OverrideSslKeyPath { set { SslKeyPath = overrideSslKeyPath = value; } } 
+        public static string? OverrideSslPfxPath { set { SslPfxPath = overrideSslPfxPath = value; } }
+        public static string? SslBasePath {
+            get { return sslBasePath; }
+            set { 
+                sslBasePath = value;
+                SetSslPaths();
+            } 
+        }
+        public static string? SslCertPath { get; set; }
+        public static string? SslKeyPath { get; set; } 
+        public static string? SslPfxPath { get; set; } 
         public static string RemoteSetupScript { get; set; } = "output_resources/remote_setup.sh";
         public static string BroadcastAuthZip { get; set; } = "output_resources/BroadcastAuth.zip";
         public static int ShutdownDelaySeconds { get; set; } = 300;
+
+        private static void SetSslPaths()
+        {
+            if ( DomainName != null && SslBasePath != null )
+            {
+                SslCertPath = string.IsNullOrWhiteSpace( overrideSslCertPath ) ? $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.full-chain.crt" : overrideSslCertPath;
+                SslKeyPath = string.IsNullOrWhiteSpace( overrideSslKeyPath ) ? $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.key" : overrideSslKeyPath;
+                SslPfxPath = string.IsNullOrWhiteSpace( overrideSslPfxPath ) ? $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.pfx" : overrideSslPfxPath;
+            }
+        }
     }
 
     public class Logging

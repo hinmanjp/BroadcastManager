@@ -19,9 +19,10 @@ builder.Services.AddDataProtection()
 
 var app = builder.Build();
 
-AppSettings.Config = app.Configuration;
 
+// import appsettings.json
 var settings = app.Configuration.Get<AppSettings>();
+
 // update dns records so that the broadcast manager can be found
 //var dnsSplit = DnsHelper.SplitDnsName(AppSettings.LocalServerDnsName ?? "");
 string ipv4Address = DnsHelper.GetLocalIPv4();

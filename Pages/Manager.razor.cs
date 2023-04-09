@@ -472,11 +472,11 @@ namespace BroadcastManager2.Pages
 
         private Vultr.Models.Instance FindExistingRemoteServer()
         {
-            var vc = new VultrClient(AppSettings.Config["VultrApiKey"] ?? "");
+            var vc = new VultrClient(AppSettings.VultrApiKey ?? "");
             var instanceResult = vc.Instance.ListInstances();
             if ( instanceResult != null )
             {
-                var instance = instanceResult.Instances.FirstOrDefault(i => !string.IsNullOrEmpty(i.label) && i.label == (AppSettings.Config["VultrVmLabel"] ?? ""));
+                var instance = instanceResult.Instances.FirstOrDefault(i => !string.IsNullOrEmpty(i.label) && i.label == (AppSettings.VultrVmLabel ?? ""));
                 if ( instance != null )
                 {
                     return instance;
@@ -552,7 +552,7 @@ SELECT count(*)
             using ( StreamReader certReader = new StreamReader( AppSettings.SslCertPath ) )
             using ( StreamReader keyReader = new StreamReader( AppSettings.SslKeyPath ) )
             using ( StreamReader pfxReader = new StreamReader( AppSettings.SslPfxPath ) )
-            using ( StreamReader remoteSetupReader = new StreamReader( AppSettings.RemoteSetupScript.Replace( "", AppSettings.DomainName ) ) )
+            using ( StreamReader remoteSetupReader = new StreamReader( AppSettings.RemoteSetupScript ) )
             {
                 scpClient.Connect();
                 scpClient.Upload( source: appReader.BaseStream, path: "/tmp/broadcastAuth.zip" );
@@ -681,7 +681,8 @@ SELECT count(*)
         private ValidationResponse ValidateAppSettings()
         {
             var response = new ValidationResponse(true, "");
-            var appSettings = new AppSettings(configuration);
+            var appSettings = new AppSettings();
+            configuration.Bind( appSettings );
 
             foreach ( PropertyInfo pi in appSettings.GetType().GetProperties( BindingFlags.Public | BindingFlags.Instance ) )
             {
