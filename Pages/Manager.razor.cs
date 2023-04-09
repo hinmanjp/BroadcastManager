@@ -21,6 +21,8 @@ using static MudBlazor.Colors;
 using System.Runtime.Intrinsics.X86;
 using System.Diagnostics.Eventing.Reader;
 using System.Reflection;
+using System.IO;
+using System.Text;
 
 namespace BroadcastManager2.Pages
 {
@@ -545,18 +547,32 @@ SELECT count(*)
         {
             string sslKeyDestPath = $"/etc/ssl/{AppSettings.DomainName}.key";
             string sslPfxDestPath = $"/etc/ssl/{AppSettings.DomainName}.pfx";
+            string sslCertDestPath = $"/etc/ssl/{AppSettings.DomainName}.full-chain.crt";
+            string escapedCertPath = sslCertDestPath.Replace("/", @"\/");
+            string escapedKeyPath = sslKeyDestPath.Replace("/", @"\/");
 
+            string data = File.ReadAllText(AppSettings.RemoteSetupScript)
+                .Replace( "{{DOMAIN}}", AppSettings.DomainName )
+                .Replace( "{{SSL_CERT_PATH}}", sslCertDestPath )
+                .Replace( "{{SSL_KEY_PATH}}", sslKeyDestPath )
+                .Replace( "{{SSL_PFX_PATH}}", sslPfxDestPath )
+                .Replace( "{{ESCAPED_CERT_PATH}}", escapedCertPath )
+                .Replace( "{{ESCAPED_KEY_PATH}}", escapedKeyPath );
+
+            // should this be Encoding.UTF8 ???
+            byte[] bytes = Encoding.ASCII.GetBytes(data);
+            Stream s = new MemoryStream(bytes);
 
             using ( ScpClient scpClient = Ssh.GetScpClient( serverIP ) )
             using ( StreamReader appReader = new StreamReader( AppSettings.BroadcastAuthZip ) )
             using ( StreamReader certReader = new StreamReader( AppSettings.SslCertPath ) )
             using ( StreamReader keyReader = new StreamReader( AppSettings.SslKeyPath ) )
             using ( StreamReader pfxReader = new StreamReader( AppSettings.SslPfxPath ) )
-            using ( StreamReader remoteSetupReader = new StreamReader( AppSettings.RemoteSetupScript ) )
+            using ( StreamReader remoteSetupReader = new StreamReader( s ) )
             {
                 scpClient.Connect();
                 scpClient.Upload( source: appReader.BaseStream, path: "/tmp/broadcastAuth.zip" );
-                scpClient.Upload( source: certReader.BaseStream, path: $"/etc/ssl/{AppSettings.DomainName}.full-chain.crt" );
+                scpClient.Upload( source: certReader.BaseStream, path: sslCertDestPath );
                 scpClient.Upload( source: keyReader.BaseStream, path: sslKeyDestPath );
                 scpClient.Upload( source: pfxReader.BaseStream, path: sslPfxDestPath );
                 scpClient.Upload( source: remoteSetupReader.BaseStream, path: "/tmp/remote_setup.sh" );
