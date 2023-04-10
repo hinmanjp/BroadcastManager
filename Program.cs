@@ -13,9 +13,9 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddHttpClient();
-builder.Services.AddMudServices();
 builder.Services.AddDataProtection()
     .SetApplicationName( "Broadcast Manager" );
+builder.Services.AddMudServices();
 
 var app = builder.Build();
 
