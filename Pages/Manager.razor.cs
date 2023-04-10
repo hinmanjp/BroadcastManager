@@ -282,7 +282,7 @@ namespace BroadcastManager2.Pages
         {
             if ( !ChangeState( SharedState.BroadcastState.paused ) )
             { return; }
-            /*
+
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
@@ -290,7 +290,7 @@ namespace BroadcastManager2.Pages
             {
                 obs.SetCurrentProgramScene( "Paused" );
             }
-            */
+
             Refresh();
             await Task.Delay( 0 );
         }
@@ -299,7 +299,7 @@ namespace BroadcastManager2.Pages
         {
             if ( !ChangeState( SharedState.BroadcastState.running ) )
             { return; }
-            /*
+
             if ( !obs.IsConnected )
                 await ConnectToObs();
 
@@ -307,7 +307,7 @@ namespace BroadcastManager2.Pages
             {
                 obs.SetCurrentProgramScene( "Camera" );
             }
-            */
+
             Refresh();
             await Task.Delay( 0 );
         }
@@ -321,8 +321,8 @@ namespace BroadcastManager2.Pages
 
             if ( obs.IsConnected )
             {
-                obs.SetCurrentProgramScene( "Finished" );
-                await Task.Delay( 5000 );  // let the back screen show for a bit before disconnecting
+                //obs.SetCurrentProgramScene( "Finished" );
+                //await Task.Delay( 5000 );  // let the back screen show for a bit before disconnecting
                 obs.SetCurrentProgramScene( "Black" );
                 await Task.Delay( 1500 );
 
@@ -402,27 +402,38 @@ namespace BroadcastManager2.Pages
         }
 
 
-        private async Task ConnectToObs()
+        private async Task<bool> ConnectToObs()
         {
-            try
-            {
-                if ( !obs.IsConnected )
-                    await obs.ConnectAsync( AppSettings.ObsUrl, AppSettings.ObsApiKey );
-            }
-            catch ( Exception ex )
-            {
-                alert_msg = "Connection to OBS service failed : " + ex.Message;
-            }
+            int maxTries = 3;
+            var alertMsg0 = alert_msg;
+            int loopCount = 0;
 
-
-            tcs = new TaskCompletionSource<bool>();
-            var obs_connect = tcs.Task;
-            int timeout = waitForObsConnection * 1000;
-            if ( !(await Task.WhenAny( obs_connect, Task.Delay( timeout ) ) == obs_connect) )
+            while ( !obs.IsConnected && loopCount < maxTries )
             {
-                // obs didn't start in time!
-                alert_msg = "The OBS socket didn't connect in time!";
-                return;
+                DateTime waitLimit = DateTime.Now.AddSeconds((double)(AppSettings.WaitSecsForObsConnection / 3));
+                loopCount++;
+                try
+                {
+                    obs.ConnectAsync( AppSettings.ObsUrl, AppSettings.ObsApiKey );
+                    while ( !obs.IsConnected && DateTime.Now < waitLimit )
+                    {
+                        await Task.Delay( 500 );
+                    }
+                }
+                catch ( Exception ex )
+                {
+                    alert_msg = "Connection to OBS service failed : " + ex.Message;
+                }
+            }
+            if ( !obs.IsConnected )
+            {
+                alert_msg += @"<br\>OBS Connect did not respond in time";
+                return false;
+            }
+            else
+            { 
+                alert_msg = alertMsg0;
+                return true;
             }
         }
 
@@ -433,7 +444,7 @@ namespace BroadcastManager2.Pages
                 sshClient.Connect();
                 if ( sshClient.IsConnected )
                 {
-                    sshClient.RunCommand( "systemctl stop stunnel@rtmp_out" );
+                    sshClient.RunCommand( "killall stunnel" );
                     //sshClient.RunCommand( "sed -ri 's/(^\\s*)(push rtmp:\\/\\/.*\\/live\\/sac1.*)/\\1#\\2/' /etc/nginx/nginx.conf ; systemctl reload nginx " );
                     sshClient.Disconnect();
                 }
@@ -454,7 +465,10 @@ namespace BroadcastManager2.Pages
                 sshClient.Connect();
                 if ( sshClient.IsConnected )
                 {
-                    sshClient.RunCommand( @$"sed -ri 's/^\s*connect\s*=\s*.*:{remoteRtmpPort}/connect = {RemoteIP}:{remoteRtmpPort}/' /etc/stunnel/rtmp_out.conf ; systemctl start stunnel@rtmp_out " );
+                    //sshClient.RunCommand( @$"sed -ri 's/^\s*connect\s*=\s*.*:{remoteRtmpPort}/connect = {RemoteIP}:{remoteRtmpPort}/' /etc/stunnel/rtmp_out.conf ; systemctl start stunnel@rtmp_out " );
+                    sshClient.RunCommand( @$"sed -ri 's/^\s*connect\s*=\s*.*:{remoteRtmpPort}/connect = {RemoteIP}:{remoteRtmpPort}/' /etc/stunnel/rtmp_out.conf " );
+                    var obsCmd = sshClient.CreateCommand( @"nohup /usr/bin/stunnel /etc/stunnel/rtmp_out.conf > foo.out 2> foo.err < /dev/null &" );
+                    obsCmd.Execute();
                     //sshClient.RunCommand( $"sed -ri 's/^#?(\\s*)#?push rtmp:\\/\\/.*\\/live\\/sac1.*/\\1push rtmp:\\/\\/{RemoteIP}:1936\\/live\\/sac1?authkey=This-is-a-place-holder;/' /etc/nginx/nginx.conf ; systemctl reload nginx " );
                     sshClient.Disconnect();
                 }
