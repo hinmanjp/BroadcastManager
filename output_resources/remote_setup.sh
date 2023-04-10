@@ -96,9 +96,6 @@ mv /tmp/js_scripts/* /var/www/html/scripts
 # make sure the stream paths can be accessed
 chmod 755 /var/www/html/stream/{hls,dash}
 
-# grant www-data the ability to write to the stream directories
-chown -R www-data /var/www/html/stream
-
 
 # if the ssl section isn't already configured, add it
 if [ $(grep -c "{{ESCAPED_CERT_PATH}}" /etc/nginx/nginx.conf) -eq 0 ]; then
