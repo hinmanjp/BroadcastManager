@@ -27,6 +27,7 @@ CAST domain name to lower case
 RESTART ome on broadcast start
 
 CREATE obs start script, change owner, & make executeable on start.
+CONFIGURE OBS Start, Pause, End scenes
 
 CONFIGURE PREREQUISITES SCRIPT to ask for required values and update appsettings.json appropriately
 
