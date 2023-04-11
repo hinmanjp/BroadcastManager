@@ -226,7 +226,7 @@ namespace BroadcastManager2.Pages
             sshClient.Connect();
             if ( sshClient.IsConnected )
             {
-                var obsCmd = sshClient.CreateCommand( @"nohup /opt/start-obs.sh > foo.out 2> foo.err < /dev/null &" );
+                var obsCmd = sshClient.CreateCommand( @"nohup /opt/startobs.sh > foo.out 2> foo.err < /dev/null &" );
                 obsCmd.Execute();
                 //var r2 = sshClient.RunCommand( @"if [ $(ps aux | grep -c '[o]bs') -eq 0 ]; then DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs & fi" );
                 //var r2 = sshClient.RunCommand( "DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &" );
@@ -551,7 +551,7 @@ SELECT count(*)
         {
             string sslKeyDestPath = $"/etc/ssl/{AppSettings.DomainName}.key";
             string sslPfxDestPath = $"/etc/ssl/{AppSettings.DomainName}.pfx";
-            string sslCertDestPath = $"/etc/ssl/{AppSettings.DomainName}.full.pem";
+            string sslCertDestPath = $"/etc/ssl/{AppSettings.DomainName}.full-chain.crt";
             string escapedCertPath = sslCertDestPath.Replace("/", @"\/");
             string escapedKeyPath = sslKeyDestPath.Replace("/", @"\/");
 
