@@ -64,7 +64,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;del &quot;$(TargetDir)*.Development.*&quot;&#xD;&#xA;del &quot;$(TargetDir)appsettings.json.sample&quot;&#xD;&#xA;if exist &quot;$(TargetDir)appsettings.json&quot; (&#xD;&#xA;rename &quot;$(TargetDir)appsettings.json&quot; &quot;appsettings.json.sample&quot;&#xD;&#xA;)&#xD;&#xA;)" />
+    <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;  del &quot;$(TargetDir)*.Development.*&quot;&#xD;&#xA;  del &quot;$(TargetDir)appsettings.json.sample&quot;&#xD;&#xA;  del &quot;BroadcastManager.zip&quot;&#xD;&#xA;  if exist &quot;$(TargetDir)appsettings.json&quot; (&#xD;&#xA;    rename &quot;$(TargetDir)appsettings.json&quot; &quot;appsettings.json.sample&quot;&#xD;&#xA;  )&#xD;&#xA;)" />
   </Target>
 
 </Project>
