@@ -331,6 +331,57 @@ chown www-data /opt/start-obs.sh
 chmod 774 /opt/start-obs.sh
 
 
+# pull the latest BroadcastManager.zip package
+#curl -o /tmp/BroadcastManager.zip https://github........
+unzip -d /opt/BroadcastManager /tmp/BroadcastManager.zip
+chown -R www-data /opt/BroadcastManager
+chmod 700 /opt/BroadcastManager/BroadcastManager2
+
+
+# configure BroadcastManager as a service
+cat << EOF > /etc/systemd/system/BroadcastManager.service
+[Unit]
+Description=ASP.NET Core Church Broadcast Management UI
+
+[Service]
+# will set the Current Working Directory (CWD)
+WorkingDirectory=/opt/BroadcastManager
+# systemd will run this executable to start the service
+# if /usr/bin/dotnet doesn't work, use `which dotnet` to find correct dotnet executable path
+ExecStart=/opt/BroadcastManager/BroadcastManager2
+# to query logs using journalctl, set a logical name here
+SyslogIdentifier=BroadcastManager
+
+# Use your username to keep things simple, for production scenario's I recommend a dedicated user/group.
+# If you pick a different user, make sure dotnet and all permissions are set correctly to run the app.
+# To update permissions, use 'chown yourusername -R /srv/AspNetSite' to take ownership of the folder and files,
+#       Use 'chmod +x /srv/AspNetSite/AspNetSite' to allow execution of the executable file.
+User=www-data
+
+# ensure the service restarts after crashing
+Restart=always
+# amount of time to wait before restarting the service
+RestartSec=5
+
+# copied from dotnet documentation at
+# https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/linux-nginx
+KillSignal=SIGINT
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=ASPNETCORE_URLS=http://*:5000
+
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable BroadcastManager
+systemctl start BroadcastManager
+
+
+
 # Configure VPN client for remote configuration
 
 
