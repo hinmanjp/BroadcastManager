@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
@@ -67,4 +67,8 @@
     <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;  del &quot;$(TargetDir)*.Development.*&quot;&#xD;&#xA;  del &quot;$(TargetDir)appsettings.json.sample&quot;&#xD;&#xA;  del &quot;BroadcastManager.zip&quot;&#xD;&#xA;  if exist &quot;$(TargetDir)appsettings.json&quot; (&#xD;&#xA;    rename &quot;$(TargetDir)appsettings.json&quot; &quot;appsettings.json.sample&quot;&#xD;&#xA;  )&#xD;&#xA;)" />
   </Target>
 
+  <Target Name="CleanAndZip" AfterTargets="Publish">
+	<Exec WorkingDirectory="$(PublishDir)" Command="del *.Development.*&#xD;&#xA;del $(ProjectDir)BroadcastManager.zip&#xD;&#xA;ren appsettings.json appsettings.json.sample&#xD;&#xA;zip $(ProjectDir)BroadcastManager.zip .\*" />
+  </Target>
+	
 </Project>
