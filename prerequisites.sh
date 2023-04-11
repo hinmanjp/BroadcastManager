@@ -88,7 +88,7 @@ curl -o /opt/getssl/dns_del_cloudflare --silent https://raw.githubusercontent.co
 
 chmod 771 /opt/getssl/*
 
-getssl -c "*.ifnorth.org"
+getssl -c "*.$DOMAIN"
 
 sed -i 's/PRIVATE_KEY_ALG="rsa"/PRIVATE_KEY_ALG="prime256v1"/' /root/.getssl/getssl.cfg
 sed -i 's/SERVER_TYPE="https"/#SERVER_TYPE="https"/' /root/.getssl/getssl.cfg
@@ -96,9 +96,9 @@ sed -i 's/CHECK_REMOTE="true"/CHECK_REMOTE="false"/' /root/.getssl/getssl.cfg
 
 TIMESTAMP=$(date)
 TIMESTAMP=${TIMESTAMP// /_}
-mv /root/.getssl/\*.ifnorth.org/getssl.cfg /root/.getssl/\*.ifnorth.org/getssl.cfg.$TIMESTAMP
+mv /root/.getssl/\*.$DOMAIN/getssl.cfg /root/.getssl/\*.$DOMAIN/getssl.cfg.$TIMESTAMP
 
-cat << EOF > /root/.getssl/\*.ifnorth.org/getssl.cfg
+cat << EOF > /root/.getssl/\*.$DOMAIN/getssl.cfg
 CA="https://acme-v02.api.letsencrypt.org"
 VALIDATE_VIA_DNS="true"
 DNS_ADD_COMMAND="CF_API_TOKEN={CF_TOKEN} CF_ZONE_ID={CF_ZONE_ID} /opt/getssl/dns_add_cloudflare"
@@ -106,16 +106,16 @@ DNS_DEL_COMMAND="CF_API_TOKEN={CF_TOKEN} CF_ZONE_ID={CF_ZONE_ID} /opt/getssl/dns
 PUBLIC_DNS_SERVER="1.1.1.1"
 AUTH_DNS_SERVER="1.1.1.1"
 FULL_CHAIN_INCLUDE_ROOT="true"
-DOMAIN_CERT_LOCATION="/etc/ssl/ifnorth.org.crt" 
-DOMAIN_KEY_LOCATION="/etc/ssl/ifnorth.org.key"
+DOMAIN_CERT_LOCATION="/etc/ssl/$DOMAIN.crt" 
+DOMAIN_KEY_LOCATION="/etc/ssl/$DOMAIN.key"
 CA_CERT_LOCATION="/etc/ssl/ca_chain.crt" 
-DOMAIN_CHAIN_LOCATION="/etc/ssl/ifnorth.org.chain.crt"
-DOMAIN_PEM_LOCATION="/etc/ssl/ifnorth.org.full.pem" 
-RELOAD_CMD="openssl pkcs12 -export -nodes -out /etc/ssl/ifnorth.org.pfx -inkey /etc/ssl/ifnorth.org.key -in /etc/ssl/ifnorth.org.chain.crt -passout pass:  ; chmod 640 /etc/ssl/*.{key,pem,pfx} ; chown :ssl-cert /etc/ssl/*.{key,pem,pfx}"
+DOMAIN_CHAIN_LOCATION="/etc/ssl/$DOMAIN.chain.crt"
+DOMAIN_PEM_LOCATION="/etc/ssl/$DOMAIN.full.pem" 
+RELOAD_CMD="openssl pkcs12 -export -nodes -out /etc/ssl/$DOMAIN.pfx -inkey /etc/ssl/$DOMAIN.key -in /etc/ssl/$DOMAIN.chain.crt -passout pass:  ; chmod 640 /etc/ssl/*.{key,pem,pfx} ; chown :ssl-cert /etc/ssl/*.{key,pem,pfx}"
 
 EOF
 
-#sed -ri 's/^(SANS=")/#\1/' /root/.getssl/\*.ifnorth.org/getssl.cfg
+#sed -ri 's/^(SANS=")/#\1/' /root/.getssl/\*.$DOMAIN/getssl.cfg
 
 # generate & install the certificates
 getssl -a
@@ -125,8 +125,6 @@ cat << EOF > /etc/cron.d/cert_renewal
 # run certificate renewal check daily at 08:03 
 03 08 * * * root /usr/bin/getssl -a -q -u 
 EOF
-
-
 
 apt -y install stunnel4
 
@@ -163,7 +161,7 @@ accept = 127.0.0.1:19353
 connect = 127.0.0.1:1936
 verifyChain = yes
 CApath = /etc/ssl/certs
-checkHost = ifnorth.org
+checkHost = $DOMAIN
 #OCSPaia = yes
 EOF
 
@@ -193,18 +191,18 @@ EOF
 cat << EOF > /tmp/ometls.txt
 
                                 <TLS>
-                                        <CertPath>/etc/ssl/ifnorth.org.chain.crt</CertPath>
-                                        <KeyPath>/etc/ssl/ifnorth.org.key</KeyPath>
+                                        <CertPath>/etc/ssl/$DOMAIN.chain.crt</CertPath>
+                                        <KeyPath>/etc/ssl/$DOMAIN.key</KeyPath>
                                 </TLS>
 EOF
 
 perl -i -p0e 's/\s+<!--\n\s+<TLS>.*?<\/TLS>\n\s+-->\n/`cat \/tmp\/ometls.txt`/se' /opt/ome/origin.conf.xml
 
 
-docker run --restart=always --name ome -d -e OME_HOST_IP=test.ifnorth.org \
+docker run --restart=always --name ome -d -e OME_HOST_IP=test.$DOMAIN \
 -p 19352:1935 -p 9999:9999/udp -p 9000:9000 -p 3333:3333 -p 3334:3334 -p 3478:3478 -p 10000-10009:10000-10009/udp \
--v /etc/ssl/ifnorth.org.chain.crt:/etc/ssl/ifnorth.org.chain.crt \
--v /etc/ssl/ifnorth.org.key:/etc/ssl/ifnorth.org.key \
+-v /etc/ssl/$DOMAIN.chain.crt:/etc/ssl/$DOMAIN.chain.crt \
+-v /etc/ssl/$DOMAIN.key:/etc/ssl/$DOMAIN.key \
 -v /opt/ome/origin.conf.xml:/opt/ovenmediaengine/bin/origin_conf/Server.xml \
 airensoft/ovenmediaengine:latest
 #-v /opt/ovenmediaengine/edge.conf.xml:/opt/ovenmediaengine/bin/edge_conf/Server.xml \
@@ -319,6 +317,21 @@ EOF
 
 chmod +x /home/***REMOVED***/.vnc/xstartup
 
+# DO THIS IN CODE ON START
+cat << EOF > /opt/start-obs.sh
+#!/usr/bin/bash
+if ! pgrep -x obs >/dev/null
+then
+echo no obs!
+DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &
+fi
+EOF
+
+chown www-data /opt/start-obs.sh
+chmod 774 /opt/start-obs.sh
+
 
 # Configure VPN client for remote configuration
+
+
 
