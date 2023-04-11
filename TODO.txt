@@ -28,6 +28,7 @@ RESTART ome on broadcast start
 
 CREATE obs start script, change owner, & make executeable on start.
 CONFIGURE OBS Start, Pause, End scenes
+REMOVE watch.ifnorth.org from DNS on machine shutdown
 
 CONFIGURE PREREQUISITES SCRIPT to ask for required values and update appsettings.json appropriately
 
