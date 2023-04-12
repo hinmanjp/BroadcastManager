@@ -23,14 +23,15 @@ VALIDATE LOGIN EXPIRATION
 //  - schedule self destruct cron command
 
 Move SHUTDOWN button to ADVANCED page
-CAST domain name to lower case
+// CAST domain name to lower case
 RESTART ome on broadcast start
 
 CREATE obs start script, change owner, & make executeable on start.
 CONFIGURE OBS Start, Pause, End scenes
 REMOVE watch.ifnorth.org from DNS on machine shutdown
 
-CONFIGURE PREREQUISITES SCRIPT to ask for required values and update appsettings.json appropriately
+% CONFIGURE PREREQUISITES SCRIPT to ask for required values and update appsettings.json appropriately
+  - NEED TESTING
 
 END USER Authentication to watch the broadcast
   - GUI for creating auth codes tied to unit & dates
