@@ -73,9 +73,9 @@ namespace BroadcastManager2
             get { return domainName; } 
             set
             { 
-                domainName = value;
+                domainName = value.ToLower();
                 if ( value!= null && string.IsNullOrWhiteSpace( VultrVmLabel ) )
-                    VultrVmLabel = Regex.Match(value, "(^[^.]*)" ).Value + "_broadcast"; 
+                    VultrVmLabel = Regex.Match(value.ToLower(), "(^[^.]*)" ).Value + "_broadcast"; 
 
                 SetSslPaths();
             } 
