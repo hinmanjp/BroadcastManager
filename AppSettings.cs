@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using static MudBlazor.CategoryTypes;
 
 namespace BroadcastManager2
@@ -73,6 +74,9 @@ namespace BroadcastManager2
             set
             { 
                 domainName = value;
+                if ( value!= null && string.IsNullOrWhiteSpace( VultrVmLabel ) )
+                    VultrVmLabel = Regex.Match(value, "(^[^.]*)" ).Value + "_broadcast"; 
+
                 SetSslPaths();
             } 
         }
