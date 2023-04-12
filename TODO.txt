@@ -10,6 +10,9 @@
 //REPLACE ALL HARDCODED references to domain names with variables
 
 % VALIDATION OF config settings 
+  Need to fix the current process
+  Need to report missing settings w/o throwing exceptions
+
 
 //Handle local storage login structure changes (discard)
 //Preserve Login for x hours. Discard after x hours.
