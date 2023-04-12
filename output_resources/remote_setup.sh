@@ -177,11 +177,7 @@ server {
     #listen [::]:80 default_server;
     #server_name _;
 
-    # Discourage deep links by using a permanent redirect to home page of HTTPS site
-    return 301 https://$host$request_uri;
-
-    # Alternatively, redirect all HTTP links to the matching HTTPS page 
-    # return 301 https://$host$request_uri;
+    return 301 https://\$host\$request_uri;
 }
 
 server {
