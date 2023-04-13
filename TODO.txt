@@ -19,19 +19,20 @@
 //  - create object with claims and last access.
 //  - Check last access on each auth request. revoke if too old. Update if recent enough.
 //  - Check / update last access on button clicks?
-VALIDATE LOGIN EXPIRATION
+// VALIDATE LOGIN EXPIRATION
+validate current login on button press
 
 //make video available until midnight 
 //  - nginx rtmp hls settings
 //  - schedule self destruct cron command
 
-Move SHUTDOWN button to ADVANCED page
+//Move SHUTDOWN button to ADVANCED page
 // CAST domain name to lower case
 RESTART ome on broadcast start
 
-CREATE obs start script, change owner, & make executeable on start.
-CONFIGURE OBS Start, Pause, End scenes
-REMOVE watch.ifnorth.org from DNS on machine shutdown
+// CREATE obs start script, change owner, & make executeable on start.
+// CONFIGURE OBS Start, Pause, End scenes
+// REMOVE watch.ifnorth.org from DNS on machine shutdown
 
 % CONFIGURE PREREQUISITES SCRIPT to ask for required values and update appsettings.json appropriately
   - NEED TESTING
