@@ -277,7 +277,7 @@ chmod +x /tmp/hls_check.sh
 
 cat << EOF > /etc/cron.d/remove_vm
 # Remove the DNS Record for the distribution server just before self destruction
-20 25 * * * root curl curl --request DELETE  --url 'https://api.cloudflare.com/client/v4/zones/{{DNS_ZONE_ID}}/dns_records/{{HOST_RECORD_ID}}' --header 'Content-Type: application/json' --header 'X-Auth-Key: {{CF_APIKEY}} '
+23 59 * * * root curl --request DELETE  --url 'https://api.cloudflare.com/client/v4/zones/{{DNS_ZONE_ID}}/dns_records/{{HOST_RECORD_ID}}' --header 'Content-Type: application/json' --header 'Authorization: Bearer {{CF_APIKEY}}'
 # Schedule the machine to self destruct at midnight
 0 0 * * * root curl --location --request DELETE 'https://api.vultr.com/v2/instances/{{VM_INSTANCE_ID}}' --header 'Authorization: Bearer {{VULTR_API_KEY}}'
 
