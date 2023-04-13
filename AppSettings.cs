@@ -9,40 +9,36 @@ namespace BroadcastManager2
     public class AppSettings
     {
         IConfiguration configuration;
+
+        private static string? domainName;
+        private static string? sshPrivateKey;
+        private static string? sshPublicKey;
+        private static string sslBasePath = "/etc/ssl/";
+        private static string? vultrVmLabel;
+
         public AppSettings(IConfiguration Configuration) 
         { 
             this.configuration = Configuration;
         }
 
-        private static string? sshPrivateKey;
-        private static string? sshPublicKey;
-        public static string AppDir 
-        { 
+        public AppSettings()
+        { }
+
+        public static string AppDir
+        {
             get
             {
                 ProcessModule? mainModule = Process.GetCurrentProcess().MainModule;
                 return Path.GetDirectoryName( mainModule?.FileName ) ?? "";
             }
         }
-
-        public AppSettings()
-        { }
-
-        private static string? domainName;
-        //private static string sslCertPath = "";
-        //private static string sslKeyPath = "";
-        //private static string sslPfxPath = "";
-        //private static string? overrideSslCertPath;
-        //private static string? overrideSslKeyPath;
-        //private static string? overrideSslPfxPath;
-
-        private static string? sslBasePath;
-
         public static Logging? Logging { get; set; }
         public static string AllowedHosts { get; set; } = "*";
         public static string? VultrApiKey { get; set; }
-        public static string? VultrVmLabel { get; set; }
-        public static string RemoteServerBaseName { get; set; } = "Broadcaster";
+        public static string VultrUrl { get; } = "https://api.vultr.com/v2/";
+
+        // replace underscores with dashes. API throws an exception on underscores.
+        public static string? VultrVmLabel { get { return vultrVmLabel; } set { vultrVmLabel = value?.Replace( '_', '-' ); } }
         public static string? SshPrivateKeyFile
         { 
             get{ return sshPrivateKey; }
@@ -66,16 +62,14 @@ namespace BroadcastManager2
         public static string? ObsApiKey { get; set; }
         public static string? OverrideObsUrl { get { return ObsUrl; } set { ObsUrl = string.IsNullOrWhiteSpace(value) ? ObsUrl : value; } }
         public static string ObsUrl { get; set; } = "ws://127.0.0.1:4455";
-        //public static string? AdminUser { get; set; }
-        //public static string? AdminPW { get; set; }
         public static string? CloudFlareTokenKey { get; set; }
         public static string? DomainName { 
             get { return domainName; } 
             set
             { 
-                domainName = value.ToLower();
+                domainName = value?.ToLower();
                 if ( value!= null && string.IsNullOrWhiteSpace( VultrVmLabel ) )
-                    VultrVmLabel = Regex.Match(value.ToLower(), "(^[^.]*)" ).Value + "_broadcast"; 
+                    VultrVmLabel = Regex.Match( value.ToLower(), "(^[^.]*)" ).Value + "-broadcast"; 
 
                 SetSslPaths();
             } 
@@ -84,36 +78,31 @@ namespace BroadcastManager2
         public static string RemoteServerDnsHostName { get; set; } = "watch";
         public static string? AppMasterPassword { get; set; }
         public static int WaitSecsForObsConnection { get; set; } = 10;
-        //public static string? OverrideSslCertPath { set { SslCertPath = overrideSslCertPath = value; } }
-        //public static string? OverrideSslKeyPath { set { SslKeyPath = overrideSslKeyPath = value; } } 
-        //public static string? OverrideSslPfxPath { set { SslPfxPath = overrideSslPfxPath = value; } }
-        public static string? SslBasePath {
-            get { return sslBasePath; }
-            set { 
-                sslBasePath = value;
-                SetSslPaths();
-            } 
+        public static string SslBasePath 
+        { 
+            get { return sslBasePath; } 
+            set { sslBasePath = value; SetSslPaths(); } 
         }
-        public static string? SslCertPath { get; set; }
-        public static string? SslKeyPath { get; set; } 
-        public static string? SslPfxPath { get; set; } 
+        public static string? SslCertPath { get; private set; }
+        public static string? SslKeyPath { get; private set; } 
+        public static string? SslPfxPath { get; private set; } 
+
         public static string RemoteSetupScript { get; set; } = "output_resources/remote_setup.sh";
         public static string BroadcastAuthZip { get; set; } = "output_resources/BroadcastAuth.zip";
         public static int ShutdownDelaySeconds { get; set; } = 300;
+        public static string? TimeZone { get; set; }
+
+        public static Vultr.Models.Instance? RemoteVM { get; set; }
 
         private static void SetSslPaths()
         {
-            if ( DomainName != null && SslBasePath != null )
+            if ( DomainName != null )
             {
-                if ( !File.Exists( SslCertPath ) && !Path.IsPathRooted( SslCertPath ) )
-                    SslCertPath = $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.full-chain.crt";
-                if ( !File.Exists( SslKeyPath ) && !Path.IsPathRooted( SslKeyPath ) )
-                    SslKeyPath = $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.key";
-                if ( !File.Exists( SslPfxPath ) && !Path.IsPathRooted( SslPfxPath ) )
-                    SslPfxPath = $"{SslBasePath.TrimEnd( '/' )}/{DomainName}.pfx";
+                SslCertPath = $"{sslBasePath.TrimEnd( '/' )}/{DomainName}.chain.crt";
+                SslKeyPath = $"{sslBasePath.TrimEnd( '/' )}/{DomainName}.key";
+                SslPfxPath = $"{sslBasePath.TrimEnd( '/' )}/{DomainName}.pfx";
             }
         }
-
 
         private static bool IsNullable<T>( T value )
         {
@@ -123,22 +112,11 @@ namespace BroadcastManager2
         public static ValidationResponse ValidateAppSettings()
         {
             var response = new ValidationResponse(true, "");
-            //var appSettings = new AppSettings();
-            //configuration.Bind( appSettings );
-            //Type type = typeof(AppSettings); // static class with static properties
-            //foreach ( var p in type.GetProperties( BindingFlags.Public | BindingFlags.Instance ) )
-            //{
-            //    if ( p. IsNullable( p.GetType() ) )
-            //    { 
-                
-            //    }
-            //    var v = p.GetValue(null, null); // static classes cannot be instanced, so use null...
-            //}
 
             Type type = typeof(AppSettings); // static class with static properties
             foreach ( var pi in type.GetProperties( ) )
             {
-                if ( IsNullable( pi.GetType() ) )
+                if ( IsNullable( pi.GetType() ) ) // this doesn't seem to see anything as actually being nullable :(
                 {
                     if ( pi.GetValue( null, null ) == null )
                     {

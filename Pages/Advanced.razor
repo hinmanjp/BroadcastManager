@@ -1,0 +1,63 @@
+﻿@page "/advanced"
+@using Microsoft.Data.Sqlite;
+<h3>Advanced</h3>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnShutdownRemote" disabled="@( string.IsNullOrWhiteSpace( AppSettings.RemoteVM?.id ) )">Shutdown Remote Server</MudButton></div>
+@code {
+
+    private async Task OnShutdownRemote()
+    {
+        await StopVultrVm();
+
+        // remove dns records
+        var dns = new UpdateCloudflareDNS(AppSettings.CloudFlareTokenKey ?? "");
+        var deleteDnsResult = await dns.DeleteDnsAsync(AppSettings.DomainName ?? "", AppSettings.RemoteServerDnsHostName, new CancellationToken());
+        if (AppSettings.RemoteVM != null)
+            AppSettings.RemoteVM.id = null;
+        await Task.Delay( 0 );
+    }
+
+
+    private async Task StopVultrVm()
+    {
+        Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: AppSettings.VultrApiKey, apiURL: AppSettings.VultrUrl);
+        // lookup list of vm ids
+
+        List<string> idList = new List<string>();
+        using ( var connection = new SqliteConnection( "Data Source=broadcast.db" ) )
+        {
+            connection.Open(); // will create the db file if it doesn't exist
+            var command = connection.CreateCommand();
+
+            command.CommandText = @"SELECT name FROM sqlite_schema WHERE type ='table' AND name = 'remote_vm'";
+
+            if ( command.ExecuteScalar() is not null )
+            {
+                command.CommandText = "SELECT vm_id FROM remote_vm;";
+                using ( var reader = command.ExecuteReader() )
+                {
+                    while ( reader.Read() )
+                    {
+                        var id = reader.GetString(0);
+                        idList.Add( id );
+                    }
+                }
+                foreach ( string id in idList )
+                {
+                    var delResult = vc.Instance.DeleteInstance(id);
+                }
+                command.CommandText = "DELETE FROM remote_vm;";
+                try
+                {
+                    await command.ExecuteNonQueryAsync();
+                }
+                catch ( Exception ex )
+                {
+                    var e1 = ex;
+                }
+            }
+        }
+
+        await Task.Delay( 0 );
+    }
+
+}

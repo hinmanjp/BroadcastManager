@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# make sure the server is running in the timezone we expect
+timedatectl set-timezone {{TIMEZONE}}
+
 groupadd -f ssl-cert
 
 chmod 440 {{SSL_KEY_PATH}} ; chown :ssl-cert {{SSL_KEY_PATH}}
@@ -96,6 +100,7 @@ mv /tmp/js_scripts/* /var/www/html/scripts
 # make sure the stream paths can be accessed
 chmod 755 /var/www/html/stream/{hls,dash}
 
+chown -R www-data /var/www/html/stream
 
 # if the ssl section isn't already configured, add it
 if [ $(grep -c "{{ESCAPED_CERT_PATH}}" /etc/nginx/nginx.conf) -eq 0 ]; then
@@ -271,8 +276,10 @@ chmod +x /tmp/hls_check.sh
 
 
 cat << EOF > /etc/cron.d/remove_vm
+# Remove the DNS Record for the distribution server just before self destruction
+20 25 * * * root curl curl --request DELETE  --url 'https://api.cloudflare.com/client/v4/zones/{{DNS_ZONE_ID}}/dns_records/{{HOST_RECORD_ID}}' --header 'Content-Type: application/json' --header 'X-Auth-Key: {{CF_APIKEY}} '
 # Schedule the machine to self destruct at midnight
-0 0 * * * root curl --location --request DELETE 'https://api.vultr.com/v2/instances/instance_id_here' --header 'Authorization: Bearer {{VULTR_API_KEY}}'
+0 0 * * * root curl --location --request DELETE 'https://api.vultr.com/v2/instances/{{VM_INSTANCE_ID}}' --header 'Authorization: Bearer {{VULTR_API_KEY}}'
 
 EOF
 

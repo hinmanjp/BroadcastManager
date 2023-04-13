@@ -21,9 +21,11 @@ namespace BroadcastManager2
         }
 
 
-        public async Task<bool> UpdateDnsAsync(string zoneName, string recordName, string IPv4address, CancellationToken cancellationToken)
+        public async Task<CloudflareDnsRecord> UpdateDnsAsync(string zoneName, string recordName, string IPv4address, CancellationToken cancellationToken)
         {
             string fullName = recordName + "." + zoneName;
+            var cfRecord = new CloudflareDnsRecord();
+
             try
             {
                 using var client = new CloudFlareClient(_authentication);
@@ -33,6 +35,9 @@ namespace BroadcastManager2
 
                 if (zone is not null)
                 {
+                    cfRecord.ZoneName = zone.Name;
+                    cfRecord.ZoneId = zone.Id;
+
                     var records = (await client.Zones.DnsRecords.GetAsync(zone.Id, new DnsRecordFilter { Type = DnsRecordType.A }, null, cancellationToken)).Result;
 
                     var record = records.Where(r => r.Name.ToLower() == fullName.ToLower()).FirstOrDefault();
@@ -40,7 +45,12 @@ namespace BroadcastManager2
                     if ( record is not null )
                     {
                         if ( record.Content == IPv4address ) // update the record if the IP is not what is wanted
-                            return true;
+                        {
+                            cfRecord.HostName = record.Name;
+                            cfRecord.HostId = record.Id;
+                            cfRecord.Success = true;
+                            return cfRecord;
+                        }
                         else
                         {
                             var modified = new ModifiedDnsRecord
@@ -53,7 +63,12 @@ namespace BroadcastManager2
                             var updateResult = (await client.Zones.DnsRecords.UpdateAsync(zone.Id, record.Id, modified, cancellationToken));
 
                             if ( updateResult.Success )
-                                return true;
+                            {
+                                cfRecord.HostName = updateResult.Result.Name;
+                                cfRecord.HostId = updateResult.Result.Id;
+                                cfRecord.Success = true;
+                                return cfRecord;
+                            }
                         }
                     }
                     else // can't find an existing record to update - need to create a new record
@@ -66,15 +81,21 @@ namespace BroadcastManager2
                             Proxied = false,
                         };
                         var addResult = await client.Zones.DnsRecords.AddAsync(zone.Id, newRecord, cancellationToken);
-                        if ( addResult.Success ) return true;
-                    }
+                        if ( addResult.Success )
+                        {
+                            cfRecord.HostName = addResult.Result.Name;
+                            cfRecord.HostId = addResult.Result.Id;
+                            cfRecord.Success = true;
+                            return cfRecord;
+                        }
+                    }   
                 }
             }
             catch (Exception ex)
             {
-                var e1 = ex;
+                cfRecord.Exception = ex;
             }
-            return false;
+            return cfRecord;
         }
 
 

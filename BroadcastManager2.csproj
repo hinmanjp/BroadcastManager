@@ -7,7 +7,7 @@
     <UserSecretsId>57e8df11-5f23-475f-a4b7-1b2b8f29b79e</UserSecretsId>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
     <AssemblyVersion>0.2023.0411</AssemblyVersion>
-    <FileVersion>0.2023.0411</FileVersion>
+    <FileVersion>0.2023.0413</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,7 +46,7 @@
 
   <ItemGroup>
     <None Update="broadcastManager_ssh_key">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="broadcastManager_ssh_key.pub">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -63,12 +63,24 @@
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="wwwroot\css\MudBlazor.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\scripts\MudBlazor.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\scripts\ovenplayer.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;  del &quot;$(TargetDir)*.Development.*&quot;&#xD;&#xA;  del &quot;$(TargetDir)appsettings.json.sample&quot;&#xD;&#xA;  del &quot;BroadcastManager.zip&quot;&#xD;&#xA;  if exist &quot;$(TargetDir)appsettings.json&quot; (&#xD;&#xA;    rename &quot;$(TargetDir)appsettings.json&quot; &quot;appsettings.json.sample&quot;&#xD;&#xA;  )&#xD;&#xA;)" />
   </Target>
 
   <Target Name="CleanAndZip" AfterTargets="Publish">
-	<Exec WorkingDirectory="$(PublishDir)" Command="del *.Development.*&#xD;&#xA;del $(ProjectDir)BroadcastManager.zip&#xD;&#xA;ren appsettings.json appsettings.json.sample&#xD;&#xA;zip $(ProjectDir)BroadcastManager.zip .\*" />
+	<Exec WorkingDirectory="$(PublishDir)" Command="del *.Development.*&#xD;&#xA;del $(ProjectDir)BroadcastManager.zip&#xD;&#xA;del $(PublishDir)appsettings.json.sample&#xD;&#xA;ren $(PublishDir)appsettings.json appsettings.json.sample&#xD;&#xA;zip -r $(ProjectDir)BroadcastManager.zip .\*" />
   </Target>
 	
 </Project>

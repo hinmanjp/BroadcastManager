@@ -37,29 +37,15 @@ namespace BroadcastManager2.Pages
         private OBSWebsocket obs = new OBSWebsocket();
         private TaskCompletionSource<bool>? tcs = null;
         private StreamViewer? localViewer;
-        //private RemoteViewer? remoteViewer = new RemoteViewer();
         private bool showRemote = false;
         private DnsHelper.DnsSplit remoteDnsSplit;
         private SetupTimer? sTimer;
-        //private ClaimsPrincipal user;
-        private Vultr.Models.Instance remoteVM;
+        
  
 
-        //private string adminPW = "";
-        //private string vultrVmLabel = "";
-        //private string appDir = "";
-        //private string cloudflareTokenKey = "";
-        //private string localServerDnsName = "";
-        //private string remoteServerDnsName = "";
-
-        //private string obsKey = "";
-        //private string obsUrl = "";
         private int remoteRtmpPort = 1936;
         private bool showLocalPlayer = true;
-        //private string sshPrivateFile = "";
-        //private string sshPublicFile = "";
-        //private string vultrKey = "";
-        private string vultrUrl = "https://api.vultr.com/v2/";
+        
         private int waitForObsConnection;
 
         private bool obs_connected;
@@ -68,39 +54,6 @@ namespace BroadcastManager2.Pages
         private string width = "90%";
         private string height = "auto";
         private bool showWaitingMsgOnStart;
-
-        //public Manager( AuthenticationStateProvider? auth, IConfiguration? configuration, IHttpClientFactory? httpClientFactory, OBSWebsocket obs, TaskCompletionSource<bool>? tcs, StreamViewer? localViewer, bool showRemote, DnsHelper.DnsSplit remoteDnsSplit, SetupTimer? sTimer, ClaimsPrincipal user, string appDir, string localServerDnsName, string remoteServerDnsName, string obsKey, string obsUrl, int remoteRtmpPort, bool showLocalPlayer, string sshPrivateFile, string sshPublicFile, string vultrKey, string vultrUrl, int waitForObsConnection, bool obs_connected, string alert_msg, string width, string height, Vultr.Models.Instance remoteVM )
-        //{
-        //    this.auth = auth;
-        //    this.configuration = configuration;
-        //    this.httpClientFactory = httpClientFactory;
-        //    this.obs = obs;
-        //    this.tcs = tcs;
-        //    this.localViewer = localViewer;
-        //    this.showRemote = showRemote;
-        //    this.remoteDnsSplit = remoteDnsSplit;
-        //    this.sTimer = sTimer;
-        //    this.user = user;
-        //    this.appDir = appDir;
-        //    this.localServerDnsName = localServerDnsName;
-        //    this.remoteServerDnsName = remoteServerDnsName;
-        //    this.obsKey = obsKey;
-        //    this.obsUrl = obsUrl;
-        //    this.remoteRtmpPort = remoteRtmpPort;
-        //    this.showLocalPlayer = showLocalPlayer;
-        //    this.sshPrivateFile = sshPrivateFile;
-        //    this.sshPublicFile = sshPublicFile;
-        //    this.vultrKey = vultrKey;
-        //    this.vultrUrl = vultrUrl;
-        //    this.waitForObsConnection = waitForObsConnection;
-        //    this.obs_connected = obs_connected;
-        //    this.alert_msg = alert_msg;
-        //    this.width = width;
-        //    this.height = height;
-        //    this.remoteVM = remoteVM;
-        //}
-
-        //public Manager() { }
 
         protected override async Task OnInitializedAsync()
         {
@@ -128,7 +81,7 @@ namespace BroadcastManager2.Pages
             obs_connected = obs.IsConnected;
             obs.Connected += onObsConnect;
 
-            remoteVM = FindExistingRemoteServer();
+            AppSettings.RemoteVM = FindExistingRemoteServer();
 
             await Task.Delay( 0 );
             await base.OnInitializedAsync();
@@ -180,42 +133,41 @@ namespace BroadcastManager2.Pages
             }
 
             
-            if (string.IsNullOrWhiteSpace(remoteVM.id))
+            if (string.IsNullOrWhiteSpace(AppSettings.RemoteVM.id))
             {
                 alert_msg = "Starting a new broadcast server instance";
                 Refresh();
-                remoteVM = await StartVultrVm();
+                AppSettings.RemoteVM = await StartVultrVm();
             }
             //VultrInstanceInfo viInfo = new VultrInstanceInfo() { PublicIPv4 = "10.20.30.40", InstanceID = "dummy_id", InstanceLabel = "dummy_label" };
 
-            
-
             // save the id, ip address, and label of the new instance
-            SaveRemoteVmInfo( remoteVM );
+            SaveRemoteVMInfo( AppSettings.RemoteVM );
 
             // update DNS records so that the remote server can be found
             var dns = new UpdateCloudflareDNS(AppSettings.CloudFlareTokenKey);
 
-            var dnsUpdateResult = await dns.UpdateDnsAsync(AppSettings.DomainName, AppSettings.RemoteServerDnsHostName, remoteVM.main_ip, new CancellationToken());
+            var dnsUpdateResult = await dns.UpdateDnsAsync(AppSettings.DomainName, AppSettings.RemoteServerDnsHostName, AppSettings.RemoteVM.main_ip, new CancellationToken());
 
 
             // wait for remote server setup & 1st reboot to complete - poll & sleep
             int readyCount = 0;
-            alert_msg = $"Waiting for remote server to finish initial startup";
+            alert_msg = $"Waiting for remote server to finish the initial load";
             Refresh();
 
             do
             {
-                await WaitForSshRunning( remoteVM.main_ip );
+                await WaitForSshRunning( AppSettings.RemoteVM.main_ip ); // should probably just look for a file marker that doesn't exist until after the first reboot rather than this loop.
                 readyCount += 1;
+                await Task.Delay( 1000 ); // allow time for the machine to have rebooted and really finally up.
             }
             while ( readyCount < 5 );
 
             alert_msg = "Finishing configuration of remote server";
             Refresh();
-            SetupRemoteBroadcastServer( remoteVM.main_ip );
+            SetupRemoteBroadcastServer( AppSettings.RemoteVM.main_ip, dnsUpdateResult );
 
-            if ( !(await WaitForHttpRunning( remoteVM.main_ip )) )
+            if ( !(await WaitForHttpRunning( AppSettings.RemoteVM.main_ip )) )
             {
                 alert_msg = "Remote server is not yet online!";
                 Refresh();
@@ -228,12 +180,14 @@ namespace BroadcastManager2.Pages
             {
                 var obsCmd = sshClient.CreateCommand( @"nohup /opt/startobs.sh > foo.out 2> foo.err < /dev/null &" );
                 obsCmd.Execute();
+                sshClient.RunCommand( @"WAIT_COUNT=0 ; while [ $(netstat -lnp | grep -c ""[o]bs"") -eq 0  ] && [ $WAIT_COUNT -lt 40 ] ; do ((WAIT_COUNT=WAIT_COUNT+1)); sleep 0.5 ; done" );
                 //var r2 = sshClient.RunCommand( @"if [ $(ps aux | grep -c '[o]bs') -eq 0 ]; then DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs & fi" );
                 //var r2 = sshClient.RunCommand( "DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &" );
                 
                 sshClient.Disconnect();
-            }
 
+            }
+            
             // connect to the obs websocket
             if ( !obs.IsConnected )
                 await ConnectToObs();
@@ -252,13 +206,13 @@ namespace BroadcastManager2.Pages
             await StartLocalPlayer();
 
             // nginx on local server won't push to new remote server until it is restarted.
-            await EnableRtmpPush( remoteVM.main_ip );
+            await EnableRtmpPush( AppSettings.RemoteVM.main_ip );
 
 
             alert_msg = "Waiting for the remote stream to start playing";
             Refresh();
 
-            await WaitForHlsStartAsync( remoteVM.main_ip );
+            await WaitForHlsStartAsync( AppSettings.RemoteVM.main_ip );
             //if (remoteViewer != null)
             //    await remoteViewer.StartPlayerAsync($"https://{remoteServerDnsName}'/stream/hls/sac1.m3u8'");
             showRemote = true;
@@ -355,18 +309,6 @@ namespace BroadcastManager2.Pages
 
             await Task.Delay( 0 );
         }
-
-        private async Task OnShutdownRemote()
-        {
-            await StopVultrVm();
-
-            // remove dns records
-            var dns = new UpdateCloudflareDNS(AppSettings.CloudFlareTokenKey ?? "");
-            var deleteDnsResult = await dns.DeleteDnsAsync(remoteDnsSplit.ZoneName, remoteDnsSplit.RecordName, new CancellationToken());
-
-            await Task.Delay( 0 );
-        }
-
 
         private bool ChangeState( SharedState.BroadcastState NewState )
         {
@@ -500,7 +442,7 @@ namespace BroadcastManager2.Pages
         }
 
 
-        private void SaveRemoteVmInfo( Instance instance )
+        private void SaveRemoteVMInfo( Instance instance )
         {
 
             using ( var connection = new SqliteConnection( "Data Source=broadcast.db" ) )
@@ -547,11 +489,11 @@ SELECT count(*)
             }
         }
 
-        private void SetupRemoteBroadcastServer( string serverIP )
+        private void SetupRemoteBroadcastServer( string serverIP, CloudflareDnsRecord dnsRecord )
         {
             string sslKeyDestPath = $"/etc/ssl/{AppSettings.DomainName}.key";
             string sslPfxDestPath = $"/etc/ssl/{AppSettings.DomainName}.pfx";
-            string sslCertDestPath = $"/etc/ssl/{AppSettings.DomainName}.full-chain.crt";
+            string sslCertDestPath = $"/etc/ssl/{AppSettings.DomainName}.full.pem";
             string escapedCertPath = sslCertDestPath.Replace("/", @"\/");
             string escapedKeyPath = sslKeyDestPath.Replace("/", @"\/");
 
@@ -562,7 +504,14 @@ SELECT count(*)
                 .Replace( "{{SSL_PFX_PATH}}", sslPfxDestPath )
                 .Replace( "{{ESCAPED_CERT_PATH}}", escapedCertPath )
                 .Replace( "{{ESCAPED_KEY_PATH}}", escapedKeyPath )
-                .Replace( "{{VULTR_API_KEY}}", AppSettings.VultrApiKey );
+                .Replace( "{{VULTR_API_KEY}}", AppSettings.VultrApiKey )
+                .Replace( "{{VM_INSTANCE_ID}}", AppSettings.RemoteVM.id )
+                .Replace( "{{TIMEZONE}}", AppSettings.TimeZone ?? "UTC" )
+                .Replace( "{{DNS_ZONE_ID}}", dnsRecord.ZoneId )
+                .Replace( "{{HOST_RECORD_ID}}", dnsRecord.HostId )
+                .Replace( "{{CF_APIKEY}}", AppSettings.CloudFlareTokenKey )
+                .Replace( "\r\n", "\n" );
+
 
             // should this be Encoding.UTF8 ???
             byte[] bytes = Encoding.ASCII.GetBytes(data);
@@ -590,7 +539,8 @@ SELECT count(*)
             sshClient.Connect();
             if ( sshClient.IsConnected )
             {
-                sshClient.RunCommand( "chmod +x /tmp/remote_setup.sh ; /tmp/remote_setup.sh" );
+                sshClient.RunCommand( @"chmod +x /tmp/remote_setup.sh ; /tmp/remote_setup.sh" );
+                
                 sshClient.Disconnect();
             }
         }
@@ -598,16 +548,16 @@ SELECT count(*)
         private async Task StartLocalPlayer()
         {
             if ( localViewer is not null )
-                await localViewer.StartPlayerAsync( StreamUrl: $"wss://{AppSettings.LocalServerDnsHostName}:3334/app/sac1"
+                await localViewer.StartPlayerAsync( StreamUrl: $"wss://{AppSettings.LocalServerDnsHostName}.{AppSettings.DomainName}:3334/app/sac1"
                                                  , sourceType: StreamViewer.SourceType.webrtc );
         }
 
         private async Task<Instance> StartVultrVm()
         {
             // need to read the public key data from the public key file.
-            string sshPublicKey = File.ReadAllText(AppSettings.SshPublicKeyFile);
+            string sshPublicKey = File.ReadAllText(AppSettings.SshPublicKeyFile).Trim();
 
-            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: AppSettings.VultrApiKey, apiURL: vultrUrl);
+            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: AppSettings.VultrApiKey, apiURL: AppSettings.VultrUrl);
 
             var sshList = vc.SSHKey.GetSSHKeys();
             var sshKey = sshList.SshKeys.Where(s => s.ssh_key == sshPublicKey).FirstOrDefault(new Ssh_Key());
@@ -657,48 +607,6 @@ SELECT count(*)
             return instanceInfo.Instances[0];
         }
 
-        private async Task StopVultrVm()
-        {
-            Vultr.API.VultrClient vc = new Vultr.API.VultrClient(apiKey: AppSettings.VultrApiKey, apiURL: vultrUrl);
-            // lookup list of vm ids
-
-            List<string> idList = new List<string>();
-            using ( var connection = new SqliteConnection( "Data Source=broadcast.db" ) )
-            {
-                connection.Open(); // will create the db file if it doesn't exist
-                var command = connection.CreateCommand();
-
-                command.CommandText = @"SELECT name FROM sqlite_schema WHERE type ='table' AND name = 'remote_vm'";
-
-                if ( command.ExecuteScalar() is not null )
-                {
-                    command.CommandText = "SELECT vm_id FROM remote_vm;";
-                    using ( var reader = command.ExecuteReader() )
-                    {
-                        while ( reader.Read() )
-                        {
-                            var id = reader.GetString(0);
-                            idList.Add( id );
-                        }
-                    }
-                    foreach ( string id in idList )
-                    {
-                        var delResult = vc.Instance.DeleteInstance(id);
-                    }
-                    command.CommandText = "DELETE FROM remote_vm;";
-                    try
-                    {
-                        await command.ExecuteNonQueryAsync();
-                    }
-                    catch ( Exception ex )
-                    {
-                        var e1 = ex;
-                    }
-                }
-            }
-
-            await Task.Delay( 0 );
-        }
         private ValidationResponse ValidateAppSettings()
         {
             var response = new ValidationResponse(true, "");
