@@ -22,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CliWrap" Version="3.6.0" />
     <PackageReference Include="CloudFlare.Client" Version="6.1.4" />
     <PackageReference Include="Core.Renci.SshNet" Version="2021.10.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="7.0.3" />
@@ -32,13 +31,11 @@
     <PackageReference Include="Microsoft.JSInterop" Version="7.0.3" />
     <PackageReference Include="MudBlazor" Version="6.2.0" />
     <PackageReference Include="MudBlazor.ThemeManager" Version="1.0.7" />
+    <PackageReference Include="obs-websocket-dotnet" Version="5.0.0.3" />
     <PackageReference Include="Websocket.Client" Version="4.6.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="obs-websocket-dotnet">
-      <HintPath>..\obs-websocket-dotnet\obs-websocket-dotnet\bin\Release\netstandard2.0\obs-websocket-dotnet.dll</HintPath>
-    </Reference>
     <Reference Include="Vultr.API">
       <HintPath>..\Vultr.API\bin\Release\netstandard2.1\Vultr.API.dll</HintPath>
     </Reference>
