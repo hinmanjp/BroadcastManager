@@ -66,6 +66,7 @@ do
   read -s VNC_PASSWORD
 done
 
+TIMEZONE=$(cat /etc/timezone)
 
 # //generate public key from ssh private key
 mkdir -p ~/.ssh
@@ -674,7 +675,7 @@ sudo apt-cache policy docker-ce
 sudo apt install docker-ce
 
 
-
+# SSL Certificate setup
 sudo curl -o /usr/bin/getssl --silent https://raw.githubusercontent.com/srvrco/getssl/latest/getssl 
 sudo chmod 771 /usr/bin/getssl
 
@@ -723,6 +724,7 @@ cat << EOF | sudo tee /etc/cron.d/cert_renewal > /dev/null
 03 08 * * * root /usr/bin/getssl -a -q -u 
 EOF
 
+# encrypt rtmp traffic to the distribution server
 sudo apt -y install stunnel4
 
 sudo mkdir -p /var/log/stunnel4
@@ -789,8 +791,77 @@ rtmp {
 EOF
 fi
 
+cat << EOF | sudo tee /etc/nginx/sites-available/BroadcastManager > /dev/null
+    server {
+        listen 443 ssl;
+        ssl_certificate     /etc/ssl/$DOMAIN.chain.crt;
+        ssl_certificate_key /etc/ssl/$DOMAIN.key;
+
+        location / {
+            proxy_pass http://127.0.0.1:5000;
+        }
+    }
+
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+
+        server_name _;
+		
+		return 301 https://\$host\$request_uri;
+
+        root /var/www/html;
+}
+EOF
+
+
+cat << EOF | sudo tee /etc/nginx/sites-available/rtmp-stats > /dev/null
+server {
+    listen 8080;
+    server_name  _;
+
+    # rtmp stat
+    location /stat {
+        rtmp_stat all;
+        rtmp_stat_stylesheet stat.xsl;
+    }
+    location /stat.xsl {
+        root /var/www/html/rtmp;
+    }
+
+    # rtmp control
+    location /control {
+        rtmp_control all;
+    }
+}
+
+server {
+    listen 8088;
+    add_header Access-Control-Allow-Origin *;
+
+    location / {
+        root /var/www/html/stream;
+    }
+}
+
+types {
+    application/dash+xml mpd;
+}
+EOF
+
+sudo mkdir -p /var/www/html/rtmp
+sudo chown www-data /var/www/html/rtmp
+sudo cp /usr/share/doc/libnginx-mod-rtmp/examples/stat.xsl /var/www/html/rtmp/
+
+sudo rm /etc/nginx/sites-enabled/default
+sudo ln -s /etc/nginx/sites-available/BroadcastManager /etc/nginx/sites-enabled/BroadcastManager
+sudo ln -s /etc/nginx/sites-available/rtmp-stats /etc/nginx/sites-enabled/rtmp-stats
+
+
 sudo systemctl restart nginx
 
+
+# OvenMediaEngine configuration
 cat << EOF | sudo tee /tmp/ometls.txt > /dev/null
 
                                 <TLS>
@@ -813,7 +884,8 @@ airensoft/ovenmediaengine:latest
 
 #-v /opt/ovenmediaengine/edge.conf.xml:/opt/ovenmediaengine/bin/edge_conf/Server.xml \
 
-# create a directory of the user that OBS will run under
+
+# create the autostart directory
 mkdir -p ~/.config/autostart/
 
 # lock the desktop on login
@@ -963,13 +1035,18 @@ WantedBy=multi-user.target
 EOF
 
 # need to configure minimum appsettings.json if one doesn't already exist
+# should check for the existance of a value for each settings if appsettings already exists
+# ideally, should only ask for input of values for settings that don't already exist
 if [ ! -f /opt/BroadcastManager/appsettings.json ]
-  sudo -u broad-man cp /opt/BroadcastManger/appsettings.json.sample /opt/BroadcastManger/appsettings.json
+  sudo -u broad-man cp /opt/BroadcastManager/appsettings.json.sample /opt/BroadcastManager/appsettings.json
   sudo sed -ri 's/("VultrApiKey": )""/\\1"$VULTR_TOKEN"/' /opt/BroadcastManger/appsettings.json
   sudo sed -ri 's/("ObsApiKey": )""/\\1"$OBS_APIKEY"/' /opt/BroadcastManger/appsettings.json
   sudo sed -ri 's/("CloudFlareTokenKey": )""/\\1"$CF_TOKEN"/' /opt/BroadcastManger/appsettings.json
   sudo sed -ri 's/("DomainName": )""/\\1"$DOMAIN"/' /opt/BroadcastManger/appsettings.json
   sudo sed -ri 's/("AppMasterPassword": )""/\\1"$APP_MASTER_PW"/' /opt/BroadcastManger/appsettings.json
+  sudo sed -ri 's/("SshPrivateKeyFile": )""/\\1"$SSH_PRIVATE_KEY_PATH"/' /opt/BroadcastManger/appsettings.json
+  sudo sed -ri 's/("SshPublicKeyFile": )""/\\1"$SSH_PRIVATE_KEY_PATH.pub"/' /opt/BroadcastManger/appsettings.json
+  sudo sed -ri 's/("TimeZone": )""/\\1"$TIMEZONE"/' /opt/BroadcastManger/appsettings.json
 fi
 
 sudo systemctl daemon-reload
