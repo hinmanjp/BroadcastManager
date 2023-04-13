@@ -13,6 +13,7 @@
   Need to fix the current process
   Need to report missing settings w/o throwing exceptions
 
+DNS BYPASS
 
 //Handle local storage login structure changes (discard)
 //Preserve Login for x hours. Discard after x hours.
@@ -20,7 +21,7 @@
 //  - Check last access on each auth request. revoke if too old. Update if recent enough.
 //  - Check / update last access on button clicks?
 // VALIDATE LOGIN EXPIRATION
-validate current login on button press
+// validate current login on button press
 
 //make video available until midnight 
 //  - nginx rtmp hls settings
@@ -28,7 +29,7 @@ validate current login on button press
 
 //Move SHUTDOWN button to ADVANCED page
 // CAST domain name to lower case
-RESTART ome on broadcast start
+// RESTART ome on broadcast start
 
 // CREATE obs start script, change owner, & make executeable on start.
 // CONFIGURE OBS Start, Pause, End scenes
@@ -44,14 +45,18 @@ END USER Authentication to watch the broadcast
   - Capture number watching
   - Send email when users logged in?
   - HOW to make sure this is captured & reported w/o getting lost?
-  
+
+HANDLE state changes while disconnected
+  - eg. when start button is pressed, and then the user navigates away from the page, and returns later, but start is not yet complete.
+
 Show current ward / date auth code on management page
 
-Configurable auth expiration window
+// Configurable auth expiration window
 
 Configurable stream expiration time
   - cron to delete stream at xx time
-  - advanced setting button to remove broadcast recording now
+  // - advanced setting button to remove broadcast recording now (shutdown now)
+
 
 Configuration page
   - configuration class
