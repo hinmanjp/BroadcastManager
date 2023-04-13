@@ -709,7 +709,7 @@ DOMAIN_KEY_LOCATION="/etc/ssl/$DOMAIN.key"
 CA_CERT_LOCATION="/etc/ssl/ca_chain.crt" 
 DOMAIN_CHAIN_LOCATION="/etc/ssl/$DOMAIN.chain.crt"
 DOMAIN_PEM_LOCATION="/etc/ssl/$DOMAIN.full.pem" 
-RELOAD_CMD="openssl pkcs12 -export -nodes -out /etc/ssl/$DOMAIN.pfx -inkey /etc/ssl/$DOMAIN.key -in /etc/ssl/$DOMAIN.chain.crt -passout pass:  ; chmod 640 /etc/ssl/*.{key,pem,pfx} ; chown :ssl-cert /etc/ssl/*.{key,pem,pfx}"
+RELOAD_CMD="openssl pkcs12 -export -nodes -out /etc/ssl/$DOMAIN.pfx -inkey /etc/ssl/$DOMAIN.key -in /etc/ssl/$DOMAIN.chain.crt -passout pass:  ; chmod 640 /etc/ssl/$DOMAIN* ; chown :ssl-cert /etc/ssl/$DOMAIN*"
 
 EOF
 
