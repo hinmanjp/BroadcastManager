@@ -1,6 +1,5 @@
 ﻿using BroadcastManager2;
 using BroadcastManager2.Components;
-using CliWrap;
 using MudBlazor;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Data.Sqlite;
@@ -29,8 +28,7 @@ namespace BroadcastManager2.Pages
     public partial class Manager : ComponentBase
     {
         [Inject] AuthenticationStateProvider? auth { get; set; }
-        [Inject] IConfiguration? configuration { get; set; }
-        [Inject] IHttpClientFactory? httpClientFactory { get; set; }
+        [Inject] NavigationManager NavigationManager { get; set; }
 
         private static event EventHandler<StateChangedArgs> OnStateChanged;
 
@@ -121,6 +119,10 @@ namespace BroadcastManager2.Pages
 
         private async Task OnBtnStart()
         {
+            var authState = await auth?.GetAuthenticationStateAsync();
+            if ( ! authState?.User?.Identity?.IsAuthenticated ?? false )
+                NavigationManager.NavigateTo( "/" );
+
             if ( !ChangeState( SharedState.BroadcastState.starting ) )
             {
                 return;
@@ -152,7 +154,7 @@ namespace BroadcastManager2.Pages
 
             // wait for remote server setup & 1st reboot to complete - poll & sleep
             int readyCount = 0;
-            alert_msg = $"Waiting for remote server to finish the initial load";
+            alert_msg = $"Waiting for remote server to finish its initial start";
             Refresh();
 
             do
@@ -180,12 +182,14 @@ namespace BroadcastManager2.Pages
             {
                 var obsCmd = sshClient.CreateCommand( @"nohup /opt/startobs.sh > foo.out 2> foo.err < /dev/null &" );
                 obsCmd.Execute();
+
+                // wait for the obs websocket to come up, or for roughly 25 seconds. Should handle the time out if it fails to come up...
                 sshClient.RunCommand( @"WAIT_COUNT=0 ; while [ $(netstat -lnp | grep -c ""[o]bs"") -eq 0  ] && [ $WAIT_COUNT -lt 40 ] ; do ((WAIT_COUNT=WAIT_COUNT+1)); sleep 0.5 ; done" );
-                //var r2 = sshClient.RunCommand( @"if [ $(ps aux | grep -c '[o]bs') -eq 0 ]; then DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs & fi" );
-                //var r2 = sshClient.RunCommand( "DISPLAY=:0 sudo --preserve-env=DISPLAY -u ***REMOVED*** obs &" );
+
+                // restart the OvenMediaEngine to make sure it's running properly
+                sshClient.RunCommand( @"docker container restart ome" );
                 
                 sshClient.Disconnect();
-
             }
             
             // connect to the obs websocket
@@ -234,6 +238,10 @@ namespace BroadcastManager2.Pages
 
         private async Task OnPause()
         {
+            var authState = await auth?.GetAuthenticationStateAsync();
+            if ( !authState?.User?.Identity?.IsAuthenticated ?? false )
+                NavigationManager.NavigateTo( "/" );
+
             if ( !ChangeState( SharedState.BroadcastState.paused ) )
             { return; }
 
@@ -251,6 +259,10 @@ namespace BroadcastManager2.Pages
 
         private async Task OnResume()
         {
+            var authState = await auth?.GetAuthenticationStateAsync();
+            if ( !authState?.User?.Identity?.IsAuthenticated ?? false )
+                NavigationManager.NavigateTo( "/" );
+
             if ( !ChangeState( SharedState.BroadcastState.running ) )
             { return; }
 
@@ -268,6 +280,10 @@ namespace BroadcastManager2.Pages
 
         private async Task OnStop()
         {
+            var authState = await auth?.GetAuthenticationStateAsync();
+            if ( !authState?.User?.Identity?.IsAuthenticated ?? false )
+                NavigationManager.NavigateTo( "/" );
+
             if ( !ChangeState( SharedState.BroadcastState.stopping ) )
             { return; }
             if ( !obs.IsConnected )
@@ -619,7 +635,7 @@ SELECT count(*)
                 if ( pi.CanRead && pi.GetValue( null, null ) == null )
                 {
                     response.IsValid = false;
-                    response.Message += $"{pi.Name} is required, but has not been set.<br/>";
+                    response.Message += $"{pi.Name} is required, but has not been set.\n";
                 }
             }
 
