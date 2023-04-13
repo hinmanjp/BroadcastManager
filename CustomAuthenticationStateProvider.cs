@@ -37,7 +37,7 @@ namespace BroadcastManager2
                     if ( identity.IsAuthenticated && identity.GetExpiration() > DateTime.UtcNow )
                     {
                         var newClaims = new Claim[] { new Claim(ClaimTypes.Name, identity?.Name)
-                                 , new Claim(ClaimTypes.Expiration, DateTime.UtcNow.AddMinutes(90).ToString(), typeof(DateTime).FullName) };
+                                 , new Claim(ClaimTypes.Expiration, DateTime.UtcNow.AddMinutes(AppSettings.SessionTimeoutMinutes).ToString(), typeof(DateTime).FullName) };
                         var claimsJson = JsonConvert.SerializeObject( newClaims );
                         await pss.SetAsync( "auth", "claims", claimsJson );
                     }
@@ -49,7 +49,9 @@ namespace BroadcastManager2
             
             //if (identity == null)
             identity ??= new ClaimsIdentity();
-            var user = new ClaimsPrincipal(identity);
+            var ident = (ClaimsIdentity)identity;
+
+            var user = new ClaimsPrincipal(ident);
 
             
             NotifyAuthenticationStateChanged( Task.FromResult( new AuthenticationState( user ) ) );

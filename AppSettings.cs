@@ -89,10 +89,11 @@ namespace BroadcastManager2
 
         public static string RemoteSetupScript { get; set; } = "output_resources/remote_setup.sh";
         public static string BroadcastAuthZip { get; set; } = "output_resources/BroadcastAuth.zip";
-        public static int ShutdownDelaySeconds { get; set; } = 300;
+        //public static int ShutdownDelaySeconds { get; set; } = 300;
         public static string? TimeZone { get; set; }
+        public static int SessionTimeoutMinutes { get; set; } = 100;
 
-        public static Vultr.Models.Instance? RemoteVM { get; set; }
+        public static Vultr.Models.Instance RemoteVM { get; set; } = new Vultr.Models.Instance();
 
         private static void SetSslPaths()
         {
