@@ -15,11 +15,10 @@
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="/manager" Match="NavLinkMatch.Prefix">Broadcast Manager</MudNavLink>
-            <MudNavLink Href="/fullscreen" Match="NavLinkMatch.Prefix">Users</MudNavLink>
+            <MudNavLink Href="/advanced" Match="NavLinkMatch.Prefix">Advanced</MudNavLink>
             <MudNavGroup Title="Settings" Expanded="true">
                 <MudNavLink Href="/users" Match="NavLinkMatch.Prefix">Users</MudNavLink>
                 <MudNavLink Href="/security" Match="NavLinkMatch.Prefix">Security</MudNavLink>
-                <MudNavLink Href="/reboot" Match="NavLinkMatch.Prefix">Reboot Server</MudNavLink>
             </MudNavGroup>
         </Authorized>
         <NotAuthorized>

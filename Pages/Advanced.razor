@@ -1,8 +1,35 @@
 ﻿@page "/advanced"
 @using Microsoft.Data.Sqlite;
-<h3>Advanced</h3>
+
+@attribute [Authorize]
+
+<style>
+    .btnSpace {
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+    }
+</style>
+
+<h3>Advanced Options</h3>
 <div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnShutdownRemote" disabled="@( string.IsNullOrWhiteSpace( AppSettings.RemoteVM?.id ) )">Shutdown Remote Server</MudButton></div>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" @onclick="OnExit">Restart the Broadcast Manager</MudButton></div>
+<div><MudButton class="btnSpace" Variant="Variant.Filled" disabled="@true" @onclick="OnReboot">Reboot the server</MudButton></div>
+
 @code {
+
+
+    private async Task OnExit()
+    {
+        // systemd will bring the app back up again after it exits
+        Environment.Exit( -1 );
+        await Task.Delay(0);
+    }
+
+    private async Task OnReboot()
+    {
+        
+        await Task.Delay(0);
+    }
 
     private async Task OnShutdownRemote()
     {
